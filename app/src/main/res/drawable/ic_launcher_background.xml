@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path android:pathData="M0,0 L108,0 L108,108 L0,108 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="6" android:startY="0"
+                android:endX="102" android:endY="108">
+                <item android:offset="0.0" android:color="#FF17A08C" />
+                <item android:offset="0.55" android:color="#FF0B6E5E" />
+                <item android:offset="1.0" android:color="#FF05433A" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 오른쪽 위에서 떨어지는 은은한 광택 -->
+    <path android:pathData="M108,0 L108,62 C78,44 58,20 54,0 Z"
+        android:fillColor="#FFFFFFFF"
+        android:fillAlpha="0.07" />
+</vector>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@drawable/w_bg"
+    android:padding="14dp">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:paddingTop="0dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/w_cur_usd" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="7dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textStyle="bold" android:textColor="@color/w_muted"
+            android:text="USD" android:maxLines="1" />
+        <TextView android:id="@+id/w_cur_eur" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="7dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textStyle="bold" android:textColor="@color/w_muted"
+            android:text="EUR" android:maxLines="1" />
+        <TextView android:id="@+id/w_cur_czk" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="7dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textStyle="bold" android:textColor="@color/w_muted"
+            android:text="CZK" android:maxLines="1" />
+        <ImageView android:id="@+id/w_refresh" android:layout_width="22dp" android:layout_height="22dp"
+            android:src="@drawable/w_refresh" android:contentDescription="새로고침" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:background="@drawable/w_hero"
+        android:padding="13dp" android:layout_marginTop="9dp">
+        <TextView android:id="@+id/w_amount" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="12sp" android:textColor="@color/w_muted" android:maxLines="1" />
+        <TextView android:id="@+id/w_result" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="26sp" android:textStyle="bold" android:textColor="@color/w_text"
+            android:maxLines="1" android:paddingTop="1dp" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:orientation="vertical" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:paddingTop="8dp">
+        <TextView android:id="@+id/w_chip_0" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="8dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textColor="@color/w_text" android:maxLines="1" />
+        <TextView android:id="@+id/w_chip_1" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="8dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textColor="@color/w_text" android:maxLines="1" />
+        <TextView android:id="@+id/w_chip_2" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="8dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textColor="@color/w_text" android:maxLines="1" />
+        <TextView android:id="@+id/w_chip_3" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="8dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textColor="@color/w_text" android:maxLines="1" />
+        <TextView android:id="@+id/w_chip_4" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="8dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textColor="@color/w_text" android:maxLines="1" />
+        <TextView android:id="@+id/w_chip_5" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:padding="8dp"
+            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textColor="@color/w_text" android:maxLines="1" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_bg">#FF161E1C</color>
+    <color name="w_text">#FFDDE4E1</color>
+    <color name="w_muted">#FF9FB0AB</color>
+    <color name="w_accent">#FF5FD9C0</color>
+    <color name="w_on_accent">#FF003730</color>
+    <color name="w_chip">#FF232D2A</color>
+    <color name="w_hero">#FF0D5248</color>
+    <color name="w_divider">#FF2E3936</color>
+    <color name="w_up">#FFFF7A82</color>
+    <color name="w_down">#FF7FA9F5</color>
+</resources>

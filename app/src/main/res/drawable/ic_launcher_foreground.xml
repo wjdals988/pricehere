@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 왼쪽: 위로 향하는 화살표 (흰색, 조금 더 굵게) -->
+    <path
+        android:pathData="M43,72 L43,38"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M33,48 L43,38 L53,48"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- 오른쪽: 아래로 향하는 화살표 (민트, 조금 더 얇게) -->
+    <path
+        android:pathData="M65,36 L65,70"
+        android:strokeColor="#FF8FE9D2"
+        android:strokeWidth="6.8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M55,60 L65,70 L75,60"
+        android:strokeColor="#FF8FE9D2"
+        android:strokeWidth="6.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
