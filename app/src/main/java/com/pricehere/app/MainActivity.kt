@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,7 +27,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -39,34 +44,39 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            MyExchangesTheme {
-                AppShell(viewModel)
+            val state by viewModel.state.collectAsState()
+            PriceHereTheme(state.themeMode) {
+                AppShell(viewModel, state)
             }
         }
     }
 }
 
 @Composable
-private fun AppShell(viewModel: RatesViewModel) {
-    val state by viewModel.state.collectAsState()
+private fun AppShell(viewModel: RatesViewModel, state: UiState) {
     var tab by rememberSaveable { mutableStateOf(Tab.CONVERT) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = { BottomTabs(tab, state.saved.size) { tab = it } },
+        bottomBar = { BottomTabs(tab, state.saved.size, state.hasUpdate) { tab = it } },
     ) { inset ->
         Box(Modifier.fillMaxSize().padding(inset)) {
             when (tab) {
                 Tab.CONVERT -> ConverterScreen(viewModel, state)
                 Tab.SAVED -> SavedScreen(viewModel, state)
-                Tab.INFO -> InfoScreen()
+                Tab.INFO -> InfoScreen(viewModel, state)
             }
         }
     }
 }
 
 @Composable
-private fun BottomTabs(current: Tab, savedCount: Int, onSelect: (Tab) -> Unit) {
+private fun BottomTabs(
+    current: Tab,
+    savedCount: Int,
+    hasUpdate: Boolean,
+    onSelect: (Tab) -> Unit,
+) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
@@ -93,11 +103,23 @@ private fun BottomTabs(current: Tab, savedCount: Int, onSelect: (Tab) -> Unit) {
                             modifier = Modifier.size(20.dp),
                         )
 
-                        Tab.INFO -> Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
+                        Tab.INFO -> Box {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            if (hasUpdate) {
+                                Box(
+                                    Modifier
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 3.dp, y = (-2).dp)
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(Trend.rising)
+                                )
+                            }
+                        }
                     }
                 },
                 label = {

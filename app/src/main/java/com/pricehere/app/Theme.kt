@@ -5,6 +5,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -82,17 +84,29 @@ object Hero {
     val darkBottom = Color(0xFF07332D)
 }
 
-/** 지금 다크 테마인지. 색을 직접 골라야 하는 소수 지점에서만 쓴다. */
-@Composable
-fun isDark(): Boolean = isSystemInDarkTheme()
+/**
+ * 지금 다크 테마인지. 색을 직접 골라야 하는 소수 지점에서만 쓴다.
+ * 사용자가 테마를 고정했을 수 있으므로 시스템 설정을 직접 보지 않는다.
+ */
+private val LocalIsDark = staticCompositionLocalOf { false }
 
 @Composable
-fun MyExchangesTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+fun isDark(): Boolean = LocalIsDark.current
+
+@Composable
+fun PriceHereTheme(
+    mode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) Dark else Light,
-        content = content,
-    )
+    val dark = when (mode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    CompositionLocalProvider(LocalIsDark provides dark) {
+        MaterialTheme(
+            colorScheme = if (dark) Dark else Light,
+            content = content,
+        )
+    }
 }

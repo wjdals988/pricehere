@@ -14,25 +14,68 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import kotlin.math.abs
 
+/** 세금을 돌려받는 방식. 매장에서 바로 빼주느냐, 나중에 환급받느냐가 다르다. */
+enum class RefundMode { IMMEDIATE, REFUND }
+
 /**
  * 여행자 부가세 환급 정보. 미국처럼 제도가 없는 곳은 null로 둔다.
  * minimumPurchase 는 한 매장에서 하루에 사야 하는 최소 금액(해당 통화 기준), 0이면 하한 없음.
+ * netFactor 는 대행사 수수료를 뺀 실수령 비율이다. 즉시 면세는 수수료가 없어 1.0이다.
  */
 data class TaxRefund(
     val countryFlag: String,
     val countryName: String,
     val vatPercent: Double,
     val minimumPurchase: Double,
+    val mode: RefundMode = RefundMode.REFUND,
+    val netFactor: Double = AGENCY_NET_FACTOR,
+    val note: String? = null,
 ) {
     /** 정가에 이미 포함된 부가세액. 정가 × VAT/(100+VAT). */
     fun vatIncludedIn(price: Double): Double = price * vatPercent / (100.0 + vatPercent)
 
-    /** 대행사 수수료를 뺀 실수령 추정액. */
-    fun estimatedRefund(price: Double): Double = vatIncludedIn(price) * NET_FACTOR
+    /** 수수료를 뺀 실수령 추정액. */
+    fun estimatedRefund(price: Double): Double = vatIncludedIn(price) * netFactor
+
+    val benefitLabel: String
+        get() = when (mode) {
+            RefundMode.IMMEDIATE -> "매장에서 바로 차감"
+            RefundMode.REFUND -> "실수령 추정 (대행 수수료 ${(100 - netFactor * 100).toInt()}% 차감)"
+        }
 
     companion object {
         /** Global Blue 등 환급 대행사가 약 1/4을 수수료로 가져간다는 통설을 반영한 값. */
-        const val NET_FACTOR = 0.75
+        const val AGENCY_NET_FACTOR = 0.75
+
+        /** 일본은 2026-11-01부터 매장 즉시 면세가 공항 환급으로 바뀐다. */
+        private val JAPAN_REFORM: LocalDate = LocalDate.of(2026, 11, 1)
+
+        fun japan(today: LocalDate = LocalDate.now(SEOUL_ZONE)): TaxRefund =
+            if (today.isBefore(JAPAN_REFORM)) {
+                TaxRefund(
+                    countryFlag = "🇯🇵",
+                    countryName = "일본",
+                    vatPercent = 10.0,
+                    minimumPurchase = 5_000.0,
+                    mode = RefundMode.IMMEDIATE,
+                    netFactor = 1.0,
+                    note = "면세 매장에서 여권을 보여주면 계산할 때 소비세가 바로 빠집니다. " +
+                        "2026년 11월 1일부터는 정가를 내고 출국 공항에서 환급받는 방식으로 바뀝니다.",
+                )
+            } else {
+                TaxRefund(
+                    countryFlag = "🇯🇵",
+                    countryName = "일본",
+                    vatPercent = 10.0,
+                    minimumPurchase = 5_000.0,
+                    mode = RefundMode.REFUND,
+                    netFactor = 1.0,
+                    note = "2026년 11월 개편된 제도입니다. 정가를 내고 출국 공항의 면세 단말기에서 " +
+                        "여권과 물품을 제시해 환급받습니다. 짐을 부치기 전에 처리해야 합니다.",
+                )
+            }
+
+        val SEOUL_ZONE: ZoneId = ZoneId.of("Asia/Seoul")
     }
 }
 
@@ -48,13 +91,22 @@ enum class Currency(
     val code: String,
     val koreanName: String,
     val flag: String,
+    /** 은행이 몇 단위로 고시하는지. 엔화는 100엔 단위라 100이다. */
+    val quoteUnit: Int,
+    /** 금액을 몇 자리까지 보여줄지. 엔화는 소수점을 쓰지 않는다. */
+    val decimals: Int,
+    val quickAmounts: List<Long>,
     val cardFeePercent: Double,
     val cashSpreadPercent: Double,
     val taxRefund: TaxRefund?,
 ) {
-    USD("USD", "미국 달러", "🇺🇸", 1.2, 1.75, null),
-    EUR("EUR", "유로", "🇪🇺", 1.2, 1.97, TaxRefund("🇪🇸", "스페인", 21.0, 0.0)),
-    CZK("CZK", "체코 코루나", "🇨🇿", 1.2, 8.0, TaxRefund("🇨🇿", "체코", 21.0, 2001.0));
+    USD("USD", "미국 달러", "🇺🇸", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.75, null),
+    EUR("EUR", "유로", "🇪🇺", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97,
+        TaxRefund("🇪🇸", "스페인", 21.0, 0.0)),
+    JPY("JPY", "일본 엔", "🇯🇵", 100, 0, listOf(500, 1_000, 5_000, 10_000, 50_000), 1.2, 1.75,
+        TaxRefund.japan()),
+    CZK("CZK", "체코 코루나", "🇨🇿", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 8.0,
+        TaxRefund("🇨🇿", "체코", 21.0, 2001.0));
 
     val naverCode: String get() = "FX_${code}KRW"
 
@@ -133,16 +185,19 @@ class RateRepository(context: Context) {
         val changes = HashMap<String, Change>(results.size)
         var quotedAt = 0L
         for ((currency, info) in results) {
-            rates[currency.code] = info.getString("closePrice").replace(",", "").toDouble()
+            // 네이버는 엔화를 100엔 단위로 준다. 내부에서는 항상 1단위당 원화로 맞춘다.
+            val unit = currency.quoteUnit.toDouble()
+            rates[currency.code] = info.getString("closePrice").replace(",", "").toDouble() / unit
             quotedAt = maxOf(quotedAt, parseNaverTime(info.optString("localTradedAt")))
-            parseChange(info)?.let { changes[currency.code] = it }
+            parseChange(info, unit)?.let { changes[currency.code] = it }
         }
         Snapshot(rates, RateSource.NAVER, quotedAt, System.currentTimeMillis(), changes)
     }
 
     /** 네이버는 전일 대비 등락폭/등락률을 함께 준다. 없으면 조용히 건너뛴다. */
-    private fun parseChange(info: JSONObject): Change? {
-        val amount = info.optString("fluctuations").replace(",", "").toDoubleOrNull() ?: return null
+    private fun parseChange(info: JSONObject, unit: Double): Change? {
+        val raw = info.optString("fluctuations").replace(",", "").toDoubleOrNull() ?: return null
+        val amount = raw / unit
         val ratio = info.optString("fluctuationsRatio").replace(",", "").toDoubleOrNull() ?: return null
         val direction = when (info.optJSONObject("fluctuationsType")?.optString("name")) {
             "RISING" -> 1

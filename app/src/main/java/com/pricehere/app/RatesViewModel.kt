@@ -42,7 +42,11 @@ data class UiState(
     val refundOpen: Boolean = false,
     val saved: List<SavedItem> = emptyList(),
     val outcome: RefreshOutcome? = null,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val update: UpdateInfo? = null,
 ) {
+    /** 설치된 버전보다 최신 릴리스가 있고, 사용자가 그 버전을 넘기지 않았을 때만 참. */
+    val hasUpdate: Boolean get() = update != null
     /** 은행 고시 매매기준율 그대로. */
     val baseRate: Double? get() = snapshot?.rateOf(selected)
 
@@ -80,9 +84,17 @@ data class UiState(
 
     val quickAmounts: List<Long>
         get() = if (foreignToKrw) {
-            listOf(10, 50, 100, 500, 1_000)
+            selected.quickAmounts
         } else {
-            listOf(10_000, 50_000, 100_000, 500_000)
+            listOf(10_000, 50_000, 100_000, 500_000, 1_000_000)
+        }
+
+    /** 은행 고시 단위 기준으로 보여줄 환율 문구. 엔화는 100엔당으로 적는다. */
+    val rateLabel: String?
+        get() {
+            val r = rate ?: return null
+            val unit = selected.quoteUnit
+            return "$unit ${selected.code} = ${formatFixed(r * unit, 2)}원"
         }
 
     val fromCurrencyCode: String get() = if (foreignToKrw) selected.code else "KRW"
@@ -92,21 +104,23 @@ data class UiState(
     val fromFlag: String get() = if (foreignToKrw) selected.flag else "🇰🇷"
     val toFlag: String get() = if (foreignToKrw) "🇰🇷" else selected.flag
 
-    /** KRW는 소수점을 쓰지 않고, 외화는 2자리까지 쓴다. */
-    val fromDecimals: Int get() = if (foreignToKrw) 2 else 0
-    val toDecimals: Int get() = if (foreignToKrw) 0 else 2
+    /** KRW는 소수점을 쓰지 않고, 외화는 통화별 자릿수를 따른다(엔화는 0자리). */
+    val fromDecimals: Int get() = if (foreignToKrw) selected.decimals else 0
+    val toDecimals: Int get() = if (foreignToKrw) 0 else selected.decimals
 }
 
 class RatesViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = RateRepository(app)
     private val store = SavedStore(app)
+    private val settings = SettingsStore(app)
 
     private val _state = MutableStateFlow(
         UiState(
             selected = repo.loadSelected(),
             snapshot = repo.loadCache(),
             saved = store.load(),
+            themeMode = settings.themeMode(),
         )
     )
     val state = _state.asStateFlow()
@@ -115,6 +129,29 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         refresh()
+        checkForUpdate()
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        settings.setThemeMode(mode)
+        _state.update { it.copy(themeMode = mode) }
+    }
+
+    /** 최신 릴리스 확인. 실패하거나 이미 최신이면 아무것도 하지 않는다. */
+    private fun checkForUpdate() {
+        viewModelScope.launch {
+            val info = UpdateChecker.fetch() ?: return@launch
+            if (!UpdateChecker.isNewerThan(info.latestVersion, BuildConfig.VERSION_NAME)) return@launch
+            if (settings.dismissedVersion() == info.latestVersion) return@launch
+            _state.update { it.copy(update = info) }
+        }
+    }
+
+    /** 이 버전은 그만 알리기. */
+    fun dismissUpdate() {
+        val version = _state.value.update?.latestVersion ?: return
+        settings.dismissVersion(version)
+        _state.update { it.copy(update = null) }
     }
 
     /**

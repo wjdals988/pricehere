@@ -8,6 +8,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun InfoScreen() {
+fun InfoScreen(viewModel: RatesViewModel, state: UiState) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -59,28 +60,21 @@ fun InfoScreen() {
             )
         }
 
+        VersionCard(state = state, onDismissUpdate = viewModel::dismissUpdate)
+
+        Spacer(Modifier.height(12.dp))
+
+        ThemeCard(current = state.themeMode, onSelect = viewModel::setThemeMode)
+
+        Spacer(Modifier.height(12.dp))
+
         WidgetCard()
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(12.dp))
 
         SourceCard()
 
-        Spacer(Modifier.height(20.dp))
-
-        Text(
-            text = "변경 이력",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
-        )
-
-        CHANGELOG.forEachIndexed { index, release ->
-            ReleaseCard(release = release, latest = index == 0)
-            Spacer(Modifier.height(10.dp))
-        }
-
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
 
         MakerCard()
 
@@ -98,6 +92,113 @@ fun InfoScreen() {
         )
 
         Spacer(Modifier.height(28.dp))
+    }
+}
+
+/** 정보에는 현재 버전만 두고, 탭하면 전체 변경 이력이 펼쳐진다. */
+@Composable
+private fun VersionCard(state: UiState, onDismissUpdate: () -> Unit) {
+    val context = LocalContext.current
+    var open by remember { mutableStateOf(false) }
+    val update = state.update
+
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { open = !open },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "현재 버전 $APP_VERSION",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (update != null) {
+                        Spacer(Modifier.width(7.dp))
+                        Dot(Trend.rising, size = 7)
+                    }
+                }
+                Text(
+                    text = if (update != null) {
+                        "새 버전 v${update.latestVersion} 이 나왔습니다"
+                    } else {
+                        "탭하면 그동안 무엇이 바뀌었는지 볼 수 있습니다"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (update != null) {
+                        Trend.rising
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            Chevron(MaterialTheme.colorScheme.onSurfaceVariant, open)
+        }
+
+        if (update != null) {
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "다운로드",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable { open(context, update.downloadUrl ?: update.releaseUrl) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+                Text(
+                    text = "이 버전 넘기기",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onDismissUpdate)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+        }
+
+        if (!open) return@SectionCard
+
+        Spacer(Modifier.height(14.dp))
+        CHANGELOG.forEachIndexed { index, release ->
+            ReleaseCard(release = release, latest = index == 0)
+            if (index != CHANGELOG.lastIndex) Spacer(Modifier.height(9.dp))
+        }
+    }
+}
+
+@Composable
+private fun ThemeCard(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Text(
+            text = "화면 테마",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "홈 화면 위젯은 항상 기기 설정을 따릅니다.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            ThemeMode.entries.forEach { mode ->
+                Pill(
+                    text = mode.label,
+                    selected = mode == current,
+                    modifier = Modifier.weight(1f),
+                ) { onSelect(mode) }
+            }
+        }
     }
 }
 
@@ -255,10 +356,10 @@ private fun WidgetCard() {
         )
         Spacer(Modifier.height(12.dp))
 
-        WidgetRow("환율 보기", "4×2 · 세 통화 환율과 등락") {
+        WidgetRow("환율 보기", "4×2 · 네 통화 환율과 등락") {
             pinWidget(context, RateWidgetProvider::class.java)
         }
-        WidgetRow("빠른 계산", "4×3 · 통화와 금액을 골라 환산") {
+        WidgetRow("빠른 계산", "4×2 · 통화와 금액을 골라 환산") {
             pinWidget(context, QuickWidgetProvider::class.java)
         }
         WidgetRow("환율 계산기", "4×5 · 위젯 안에서 금액 입력") {

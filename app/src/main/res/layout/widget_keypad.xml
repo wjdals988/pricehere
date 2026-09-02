@@ -6,20 +6,25 @@
     android:padding="12dp">
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:paddingTop="0dp" android:gravity="center_vertical">
+        android:orientation="horizontal" android:gravity="center_vertical">
         <TextView android:id="@+id/w_cur_usd" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="7dp"
-            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
             android:textSize="12sp" android:textStyle="bold" android:textColor="@color/w_muted"
             android:text="USD" android:maxLines="1" />
         <TextView android:id="@+id/w_cur_eur" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="7dp"
-            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
             android:textSize="12sp" android:textStyle="bold" android:textColor="@color/w_muted"
             android:text="EUR" android:maxLines="1" />
+        <TextView android:id="@+id/w_cur_jpy" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
+            android:textSize="12sp" android:textStyle="bold" android:textColor="@color/w_muted"
+            android:text="JPY" android:maxLines="1" />
         <TextView android:id="@+id/w_cur_czk" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="7dp"
-            android:layout_marginEnd="5dp" android:background="@drawable/w_chip"
+            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
             android:textSize="12sp" android:textStyle="bold" android:textColor="@color/w_muted"
             android:text="CZK" android:maxLines="1" />
         <ImageView android:id="@+id/w_refresh" android:layout_width="22dp" android:layout_height="22dp"
@@ -27,12 +32,22 @@
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical" android:background="@drawable/w_hero"
-        android:padding="11dp" android:layout_marginTop="8dp">
-        <TextView android:id="@+id/w_amount" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textSize="13sp" android:textColor="@color/w_muted" android:maxLines="1" />
-        <TextView android:id="@+id/w_result" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textSize="24sp" android:textStyle="bold" android:textColor="@color/w_text"
-            android:maxLines="1" android:paddingTop="1dp" />
+        android:padding="12dp" android:layout_marginTop="9dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/w_amount" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="17sp" android:textStyle="bold" android:textColor="@color/w_text"
+                android:maxLines="1" android:ellipsize="end" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="→" android:textSize="15sp" android:textColor="@color/w_muted"
+                android:paddingStart="9dp" android:paddingEnd="9dp" />
+            <TextView android:id="@+id/w_result" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:textSize="22sp" android:textStyle="bold"
+                android:textColor="@color/w_text" android:maxLines="1" android:ellipsize="end" />
+        </LinearLayout>
+        <TextView android:id="@+id/w_rate" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="4dp" android:textSize="11sp" android:textColor="@color/w_muted"
+            android:maxLines="1" />
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:orientation="horizontal" android:paddingTop="5dp">

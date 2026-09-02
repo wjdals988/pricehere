@@ -5,9 +5,9 @@ import android.content.Context
 import android.widget.RemoteViews
 import java.time.Instant
 
-private val CODE_IDS = intArrayOf(R.id.w_code_0, R.id.w_code_1, R.id.w_code_2)
-private val RATE_IDS = intArrayOf(R.id.w_rate_0, R.id.w_rate_1, R.id.w_rate_2)
-private val CHG_IDS = intArrayOf(R.id.w_chg_0, R.id.w_chg_1, R.id.w_chg_2)
+private val CODE_IDS = intArrayOf(R.id.w_code_0, R.id.w_code_1, R.id.w_code_2, R.id.w_code_3)
+private val RATE_IDS = intArrayOf(R.id.w_rate_0, R.id.w_rate_1, R.id.w_rate_2, R.id.w_rate_3)
+private val CHG_IDS = intArrayOf(R.id.w_chg_0, R.id.w_chg_1, R.id.w_chg_2, R.id.w_chg_3)
 private val CHIP_IDS = intArrayOf(
     R.id.w_chip_0, R.id.w_chip_1, R.id.w_chip_2,
     R.id.w_chip_3, R.id.w_chip_4, R.id.w_chip_5,
@@ -15,6 +15,7 @@ private val CHIP_IDS = intArrayOf(
 private val CURRENCY_IDS = mapOf(
     Currency.USD to R.id.w_cur_usd,
     Currency.EUR to R.id.w_cur_eur,
+    Currency.JPY to R.id.w_cur_jpy,
     Currency.CZK to R.id.w_cur_czk,
 )
 
@@ -32,12 +33,16 @@ fun renderRateWidget(context: Context): RemoteViews {
     )
 
     Currency.entries.forEachIndexed { i, currency ->
-        views.setTextViewText(CODE_IDS[i], "${currency.flag} ${currency.code}")
+        val unit = currency.quoteUnit
+        views.setTextViewText(
+            CODE_IDS[i],
+            if (unit == 1) "${currency.flag} ${currency.code}" else "${currency.flag} ${unit}${currency.code}",
+        )
         views.setTextViewText(
             RATE_IDS[i],
-            snapshot?.rateOf(currency)?.let { formatFixed(it, 2) } ?: "—",
+            snapshot?.rateOf(currency)?.let { formatFixed(it * unit, 2) } ?: "—",
         )
-        bindChange(context, views, CHG_IDS[i], snapshot?.changeOf(currency))
+        bindChange(context, views, CHG_IDS[i], snapshot?.changeOf(currency), unit)
     }
 
     views.setOnClickPendingIntent(
@@ -48,7 +53,13 @@ fun renderRateWidget(context: Context): RemoteViews {
     return views
 }
 
-private fun bindChange(context: Context, views: RemoteViews, id: Int, change: Change?) {
+private fun bindChange(
+    context: Context,
+    views: RemoteViews,
+    id: Int,
+    change: Change?,
+    unit: Int,
+) {
     if (change == null || change.direction == 0) {
         views.setTextViewText(id, "보합")
         views.setTextColor(id, context.getColor(R.color.w_muted))
@@ -57,7 +68,7 @@ private fun bindChange(context: Context, views: RemoteViews, id: Int, change: Ch
     val rising = change.direction > 0
     views.setTextViewText(
         id,
-        "${if (rising) "▲" else "▼"} ${formatFixed(change.amount, 2)} (${formatFixed(change.ratio, 2)}%)",
+        "${if (rising) "▲" else "▼"} ${formatFixed(change.amount * unit, 2)}",
     )
     views.setTextColor(id, context.getColor(if (rising) R.color.w_up else R.color.w_down))
 }
@@ -72,7 +83,7 @@ fun renderQuickWidget(context: Context): RemoteViews {
     bindHeader(context, views, provider, state)
     bindHero(context, views, state)
 
-    listOf(10L, 50L, 100L, 500L, 1_000L).forEachIndexed { i, value ->
+    state.currency.quickAmounts.forEachIndexed { i, value ->
         views.setTextViewText(CHIP_IDS[i], compact(value))
         views.setOnClickPendingIntent(
             CHIP_IDS[i],
@@ -150,7 +161,7 @@ private fun bindHeader(
 ) {
     CURRENCY_IDS.forEach { (currency, id) ->
         val on = currency == state.currency
-        views.setTextViewText(id, "${currency.flag} ${currency.code}")
+        views.setTextViewText(id, currency.code)
         views.setInt(
             id,
             "setBackgroundResource",
@@ -172,13 +183,20 @@ private fun bindHeader(
 }
 
 private fun bindHero(context: Context, views: RemoteViews, state: WidgetSnapshot) {
-    val rate = state.rate
-    val head = "${format(state.amount, 2)} ${state.currency.code}"
-    val tail = rate?.let { "   1 ${state.currency.code} = ${formatFixed(it, 2)}원" }.orEmpty()
-    views.setTextViewText(R.id.w_amount, head + tail)
+    val currency = state.currency
+    val unit = currency.quoteUnit
+    views.setTextViewText(
+        R.id.w_amount,
+        "${format(state.amount, currency.decimals)} ${currency.code}",
+    )
     views.setTextViewText(
         R.id.w_result,
         state.result?.let { "${format(it, 0)}원" } ?: "—",
+    )
+    views.setTextViewText(
+        R.id.w_rate,
+        state.rate?.let { "$unit ${currency.code} = ${formatFixed(it * unit, 2)}원" }
+            ?: "환율을 불러오는 중",
     )
     views.setOnClickPendingIntent(R.id.w_result, WidgetHub.openApp(context))
     views.setOnClickPendingIntent(R.id.w_amount, WidgetHub.openApp(context))

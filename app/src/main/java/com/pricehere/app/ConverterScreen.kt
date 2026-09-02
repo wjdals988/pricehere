@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -56,6 +59,10 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,7 +75,10 @@ import java.time.Instant
 fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
     val focus = LocalFocusManager.current
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val amountFocus = remember { FocusRequester() }
     var askMemo by remember { mutableStateOf(false) }
+    var showUpdate by remember { mutableStateOf(false) }
 
     // 새로고침 결과 배너는 잠깐만 보여준다.
     LaunchedEffect(state.outcome) {
@@ -97,9 +107,16 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
     ) {
         Header(
             loading = state.loading,
+            hasUpdate = state.hasUpdate,
             onRefresh = { viewModel.refresh(manual = true) },
             onShare = { shareResult(context, state) },
+            onVersionClick = { if (state.hasUpdate) showUpdate = true },
         )
+
+        if (state.snapshot?.source == RateSource.CACHE) {
+            OfflineBanner()
+            Spacer(Modifier.height(10.dp))
+        }
 
         CurrencySegments(selected = state.selected, onSelect = viewModel::select)
 
@@ -110,13 +127,17 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
             label = state.fromLabel,
             code = state.fromCurrencyCode,
             value = state.input,
+            focusRequester = amountFocus,
             onValueChange = viewModel::onInputChange,
         )
 
         Spacer(Modifier.height(10.dp))
         QuickAmounts(state.quickAmounts, viewModel::setQuickAmount)
 
-        SwapRow(onSwap = viewModel::swap)
+        SwapRow(onSwap = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            viewModel.swap()
+        })
 
         val resultText = state.result?.let { format(it, state.toDecimals) } ?: "—"
         ResultCard(
@@ -124,8 +145,14 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
             label = state.toLabel,
             code = state.toCurrencyCode,
             text = resultText,
-            onCopy = { copyToClipboard(context, "$resultText ${state.toCurrencyCode}") },
-            onSave = { askMemo = true },
+            onCopy = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                copyToClipboard(context, "$resultText ${state.toCurrencyCode}")
+            },
+            onSave = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                askMemo = true
+            },
         )
 
         Spacer(Modifier.height(14.dp))
@@ -140,6 +167,18 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
         }
 
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (showUpdate && state.update != null) {
+        UpdateDialog(
+            info = state.update,
+            onDismiss = { showUpdate = false },
+            onSkip = { showUpdate = false; viewModel.dismissUpdate() },
+            onDownload = {
+                showUpdate = false
+                openUrl(context, state.update.downloadUrl ?: state.update.releaseUrl)
+            },
+        )
     }
 
     if (askMemo) {
@@ -162,7 +201,13 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
 // ---------------------------------------------------------------- 헤더
 
 @Composable
-private fun Header(loading: Boolean, onRefresh: () -> Unit, onShare: () -> Unit) {
+private fun Header(
+    loading: Boolean,
+    hasUpdate: Boolean,
+    onRefresh: () -> Unit,
+    onShare: () -> Unit,
+    onVersionClick: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().height(64.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -175,16 +220,33 @@ private fun Header(loading: Boolean, onRefresh: () -> Unit, onShare: () -> Unit)
             color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(Modifier.width(9.dp))
-        Text(
-            text = APP_VERSION,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .clip(RoundedCornerShape(7.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 7.dp, vertical = 3.dp),
-        )
+        Box {
+            Text(
+                text = APP_VERSION,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (hasUpdate) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .clickable(enabled = hasUpdate, onClick = onVersionClick)
+                    .padding(horizontal = 7.dp, vertical = 3.dp),
+            )
+            if (hasUpdate) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 3.dp, y = (-3).dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Trend.rising)
+                )
+            }
+        }
 
         Spacer(Modifier.weight(1f))
 
@@ -298,6 +360,7 @@ private fun AmountCard(
     label: String,
     code: String,
     value: String,
+    focusRequester: FocusRequester,
     onValueChange: (String) -> Unit,
 ) {
     Column(
@@ -306,6 +369,8 @@ private fun AmountCard(
             .shadow(1.dp, RoundedCornerShape(24.dp), clip = false)
             .clip(RoundedCornerShape(24.dp))
             .background(MaterialTheme.colorScheme.surface)
+            // 숫자 영역이 좁아 놓치기 쉬우므로 카드 어디를 눌러도 입력으로 들어간다.
+            .clickable { focusRequester.requestFocus() }
             .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
         CardHeader(flag, label, code, MaterialTheme.colorScheme.onSurfaceVariant)
@@ -318,7 +383,7 @@ private fun AmountCard(
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             visualTransformation = ThousandsTransformation,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             decorationBox = { field ->
                 if (value.isEmpty()) {
                     Text(
@@ -457,25 +522,21 @@ private fun RateInfoCard(state: UiState, now: Long) {
     SectionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = if (rate == null) {
-                    "환율을 불러오는 중입니다"
-                } else {
-                    "1 ${state.selected.code} = ${formatFixed(rate, 2)}원"
-                },
+                text = state.rateLabel ?: "환율을 불러오는 중입니다",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (change != null && change.direction != 0 && state.priceMode == PriceMode.BASE) {
                 Spacer(Modifier.weight(1f))
-                TrendBadge(change)
+                TrendBadge(change, state.selected.quoteUnit)
             }
         }
 
         if (state.priceMode != PriceMode.BASE) {
             Spacer(Modifier.height(5.dp))
             Text(
-                text = "매매기준율 ${formatFixed(state.baseRate ?: 0.0, 2)}원에 " +
+                text = "매매기준율 ${formatFixed((state.baseRate ?: 0.0) * state.selected.quoteUnit, 2)}원에 " +
                     "${state.priceMode.label} 수수료 ${formatFixed(state.feePercent, 2)}%를 더한 추정치",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -572,7 +633,7 @@ private fun RefreshBanner(outcome: RefreshOutcome) {
 }
 
 @Composable
-private fun TrendBadge(change: Change) {
+private fun TrendBadge(change: Change, unit: Int) {
     val rising = change.direction > 0
     val dark = isDark()
     val tint = when {
@@ -591,12 +652,67 @@ private fun TrendBadge(change: Change) {
         Text(text = if (rising) "▲" else "▼", fontSize = 9.sp, color = tint)
         Spacer(Modifier.width(4.dp))
         Text(
-            text = "${formatFixed(change.amount, 2)} (${formatFixed(change.ratio, 2)}%)",
+            text = "${formatFixed(change.amount * unit, 2)} (${formatFixed(change.ratio, 2)}%)",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
             color = tint,
         )
     }
+}
+
+// ---------------------------------------------------------------- 오프라인 / 업데이트
+
+/** 오프라인 상태는 아래쪽 카드에만 두면 놓치기 쉬워서 맨 위에도 알린다. */
+@Composable
+private fun OfflineBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 13.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Dot(MaterialTheme.colorScheme.error, size = 7)
+        Spacer(Modifier.width(9.dp))
+        Text(
+            text = "오프라인입니다. 마지막으로 받아둔 환율로 계산하고 있습니다.",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    }
+}
+
+@Composable
+private fun UpdateDialog(
+    info: UpdateInfo,
+    onDismiss: () -> Unit,
+    onSkip: () -> Unit,
+    onDownload: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("새 버전 v${info.latestVersion}", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    text = "지금 쓰는 버전은 $APP_VERSION 입니다. " +
+                        "GitHub 릴리스에서 새 버전을 받을 수 있습니다.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "Play 스토어를 거치지 않는 파일이라 설치할 때 " +
+                        "\"출처를 알 수 없는 앱\" 허용이 필요합니다.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                )
+            }
+        },
+        confirmButton = { Button(onClick = onDownload) { Text("다운로드") } },
+        dismissButton = { TextButton(onClick = onSkip) { Text("이 버전 넘기기") } },
+    )
 }
 
 // ---------------------------------------------------------------- 세금 환급
@@ -648,30 +764,31 @@ private fun TaxRefundPanel(state: UiState, onToggle: () -> Unit) {
         }
 
         val code = state.selected.code
+        val decimals = state.selected.decimals
         val vatPart = refund.vatIncludedIn(price)
         val net = refund.estimatedRefund(price)
         val after = price - net
 
         DetailRow(
             label = "구매 금액",
-            value = "${format(price, 2)} $code",
+            value = "${format(price, decimals)} $code",
             sub = "${format(price * base, 0)}원",
         )
         DetailRow(
             label = "정가에 포함된 부가세",
-            value = "${format(vatPart, 2)} $code",
+            value = "${format(vatPart, decimals)} $code",
             sub = "${format(vatPart * base, 0)}원",
         )
         DetailRow(
-            label = "실수령 추정 (대행 수수료 25% 차감)",
-            value = "${format(net, 2)} $code",
+            label = refund.benefitLabel,
+            value = "${format(net, decimals)} $code",
             sub = "${format(net * base, 0)}원",
             emphasize = true,
             valueColor = MaterialTheme.colorScheme.primary,
         )
         DetailRow(
-            label = "환급 후 실부담",
-            value = "${format(after, 2)} $code",
+            label = if (refund.mode == RefundMode.IMMEDIATE) "면세가 실부담" else "환급 후 실부담",
+            value = "${format(after, decimals)} $code",
             sub = "${format(after * base, 0)}원",
         )
 
@@ -695,8 +812,9 @@ private fun TaxRefundPanel(state: UiState, onToggle: () -> Unit) {
 
         Spacer(Modifier.height(11.dp))
         Text(
-            text = "환급액은 대행사·수령 방식(현금/카드)에 따라 달라집니다. " +
-                "실수령률은 대행 수수료를 약 25%로 잡은 추정치이며, 공항에서 세관 확인을 받아야 합니다.",
+            text = refund.note
+                ?: ("환급액은 대행사·수령 방식(현금/카드)에 따라 달라집니다. " +
+                    "실수령률은 대행 수수료를 약 25%로 잡은 추정치이며, 공항에서 세관 확인을 받아야 합니다."),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
         )
@@ -750,7 +868,7 @@ private fun shareResult(context: Context, state: UiState) {
                     " = ${format(result, state.toDecimals)} ${state.toCurrencyCode}"
             )
             appendLine()
-            appendLine("적용 환율  1 ${state.selected.code} = ${formatFixed(rate, 2)}원")
+            appendLine("적용 환율  ${state.rateLabel}")
             if (state.priceMode != PriceMode.BASE) {
                 appendLine("기준       ${state.priceMode.label} 수수료 ${formatFixed(state.feePercent, 2)}% 반영")
             }
@@ -766,6 +884,10 @@ private fun shareResult(context: Context, state: UiState) {
         putExtra(Intent.EXTRA_TEXT, body)
     }
     context.startActivity(Intent.createChooser(send, "환율 결과 공유"))
+}
+
+fun openUrl(context: Context, url: String) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }
 
 private fun copyToClipboard(context: Context, text: String) {
