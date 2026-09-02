@@ -38,6 +38,11 @@ android {
                 storePassword = keystoreProps.getProperty("storePassword")
                 keyAlias = keystoreProps.getProperty("keyAlias")
                 keyPassword = keystoreProps.getProperty("keyPassword")
+                // minSdk 26이라 v1(JAR 서명)은 필요 없다.
+                // v3는 나중에 서명 키를 교체할 여지를 남겨두므로 켜 둔다.
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
