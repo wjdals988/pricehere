@@ -27,6 +27,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,7 +41,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun InfoScreen(viewModel: RatesViewModel, state: UiState) {
+fun InfoScreen(
+    viewModel: RatesViewModel,
+    state: UiState,
+    openVersion: Boolean = false,
+    onVersionOpened: () -> Unit = {},
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -60,7 +66,12 @@ fun InfoScreen(viewModel: RatesViewModel, state: UiState) {
             )
         }
 
-        VersionCard(state = state, onDismissUpdate = viewModel::dismissUpdate)
+        VersionCard(
+            state = state,
+            forceOpen = openVersion,
+            onOpened = onVersionOpened,
+            onDismissUpdate = viewModel::dismissUpdate,
+        )
 
         Spacer(Modifier.height(12.dp))
 
@@ -97,10 +108,22 @@ fun InfoScreen(viewModel: RatesViewModel, state: UiState) {
 
 /** 정보에는 현재 버전만 두고, 탭하면 전체 변경 이력이 펼쳐진다. */
 @Composable
-private fun VersionCard(state: UiState, onDismissUpdate: () -> Unit) {
+private fun VersionCard(
+    state: UiState,
+    forceOpen: Boolean,
+    onOpened: () -> Unit,
+    onDismissUpdate: () -> Unit,
+) {
     val context = LocalContext.current
     var open by remember { mutableStateOf(false) }
     val update = state.update
+
+    LaunchedEffect(forceOpen) {
+        if (forceOpen) {
+            open = true
+            onOpened()
+        }
+    }
 
     SectionCard(background = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Row(
@@ -124,7 +147,7 @@ private fun VersionCard(state: UiState, onDismissUpdate: () -> Unit) {
                     text = if (update != null) {
                         "새 버전 v${update.latestVersion} 이 나왔습니다"
                     } else {
-                        "탭하면 그동안 무엇이 바뀌었는지 볼 수 있습니다"
+                        CHANGELOG.firstOrNull()?.headline ?: "변경 이력"
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (update != null) {

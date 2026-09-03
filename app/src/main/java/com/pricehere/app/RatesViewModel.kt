@@ -44,6 +44,9 @@ data class UiState(
     val outcome: RefreshOutcome? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val update: UpdateInfo? = null,
+    val historyRange: HistoryRange = HistoryRange.MONTH,
+    val history: List<RatePoint> = emptyList(),
+    val historyLoading: Boolean = false,
 ) {
     /** 설치된 버전보다 최신 릴리스가 있고, 사용자가 그 버전을 넘기지 않았을 때만 참. */
     val hasUpdate: Boolean get() = update != null
@@ -196,6 +199,25 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
         if (_state.value.outcome != null) _state.update { it.copy(outcome = null) }
     }
 
+    /**
+     * 환율 추이는 시트를 열 때만 받아온다. 홈 화면을 열자마자 부를 필요가 없고,
+     * 통화나 기간이 바뀌는 사이에 응답이 도착하면 그 결과는 버린다.
+     */
+    fun loadHistory(range: HistoryRange = _state.value.historyRange) {
+        val currency = _state.value.selected
+        _state.update { it.copy(historyRange = range, historyLoading = true) }
+        viewModelScope.launch {
+            val points = RateHistory.fetch(currency, range)
+            _state.update {
+                if (it.selected != currency || it.historyRange != range) {
+                    it
+                } else {
+                    it.copy(history = points.orEmpty(), historyLoading = false)
+                }
+            }
+        }
+    }
+
     /** 숫자와 소수점 1개만 남긴다. 콤마 삽입은 하지 않는다(표시 단계에서 처리). */
     fun onInputChange(raw: String) {
         var seenDot = false
@@ -221,7 +243,8 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
     fun select(currency: Currency) {
         if (currency == _state.value.selected) return
         repo.saveSelected(currency)
-        _state.update { it.copy(selected = currency) }
+        // 통화가 바뀌면 이전 통화의 추이는 의미가 없다.
+        _state.update { it.copy(selected = currency, history = emptyList()) }
     }
 
     fun setPriceMode(mode: PriceMode) {

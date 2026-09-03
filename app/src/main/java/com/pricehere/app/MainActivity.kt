@@ -34,7 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-enum class Tab(val label: String) { CONVERT("환산"), SAVED("저장"), INFO("정보") }
+enum class Tab(val label: String) { HOME("홈"), SAVED("저장"), INFO("정보") }
 
 class MainActivity : ComponentActivity() {
 
@@ -54,7 +54,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AppShell(viewModel: RatesViewModel, state: UiState) {
-    var tab by rememberSaveable { mutableStateOf(Tab.CONVERT) }
+    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    // 홈에서 버전 칩을 누르면 정보 탭의 버전 카드를 펼친 상태로 열어준다.
+    var openVersion by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -62,9 +64,22 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
     ) { inset ->
         Box(Modifier.fillMaxSize().padding(inset)) {
             when (tab) {
-                Tab.CONVERT -> ConverterScreen(viewModel, state)
+                Tab.HOME -> ConverterScreen(
+                    viewModel = viewModel,
+                    state = state,
+                    onOpenVersion = {
+                        openVersion = true
+                        tab = Tab.INFO
+                    },
+                )
+
                 Tab.SAVED -> SavedScreen(viewModel, state)
-                Tab.INFO -> InfoScreen(viewModel, state)
+                Tab.INFO -> InfoScreen(
+                    viewModel = viewModel,
+                    state = state,
+                    openVersion = openVersion,
+                    onVersionOpened = { openVersion = false },
+                )
             }
         }
     }
@@ -88,7 +103,7 @@ private fun BottomTabs(
                 onClick = { onSelect(tab) },
                 icon = {
                     when (tab) {
-                        Tab.CONVERT -> SwapIcon(
+                        Tab.HOME -> SwapIcon(
                             if (selected) {
                                 MaterialTheme.colorScheme.onSecondaryContainer
                             } else {

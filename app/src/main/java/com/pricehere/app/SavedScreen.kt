@@ -22,14 +22,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,7 +50,17 @@ import java.time.Instant
 fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
     val context = LocalContext.current
     var askClear by remember { mutableStateOf(false) }
+    var picking by remember { mutableStateOf(false) }
+    val picked = remember { mutableStateListOf<Long>() }
     val items = state.saved
+
+    // 목록이 비면 선택 모드를 유지할 이유가 없다.
+    LaunchedEffect(items.size) {
+        if (items.isEmpty()) {
+            picking = false
+            picked.clear()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -55,51 +68,23 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "저장한 금액",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.6).sp,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Spacer(Modifier.weight(1f))
-            if (items.isNotEmpty()) {
-                RoundAction(onClick = {
-                    shareText(context, buildSavedShareText(items, state.snapshot), "저장 목록 공유")
-                }) {
-                    Icon(
-                        imageVector = Icons.Filled.Share,
-                        contentDescription = "저장 목록 공유",
-                        modifier = Modifier.size(17.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        SavedHeader(
+            picking = picking,
+            pickedCount = picked.size,
+            totalCount = items.size,
+            loading = state.loading,
+            onStartPicking = { picking = true; picked.clear() },
+            onCancelPicking = { picking = false; picked.clear() },
+            onToggleAll = {
+                if (picked.size == items.size) {
+                    picked.clear()
+                } else {
+                    picked.clear()
+                    picked.addAll(items.map { it.id })
                 }
-                Spacer(Modifier.width(8.dp))
-                RoundAction(
-                    onClick = { viewModel.refresh(manual = true) },
-                    enabled = !state.loading,
-                ) {
-                    if (state.loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(17.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = "환율 새로고침",
-                            modifier = Modifier.size(19.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
+            },
+            onRefresh = { viewModel.refresh(manual = true) },
+        )
 
         if (items.isEmpty()) {
             EmptyState()
@@ -114,23 +99,51 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
             SavedRow(
                 item = item,
                 currentRate = state.snapshot?.rates?.get(item.currencyCode),
+                picking = picking,
+                checked = item.id in picked,
+                onToggle = {
+                    if (item.id in picked) picked.remove(item.id) else picked.add(item.id)
+                },
+                onShare = {
+                    shareText(
+                        context,
+                        buildSavedShareText(listOf(item), state.snapshot),
+                        "${item.memo} 공유",
+                    )
+                },
                 onDelete = { viewModel.deleteSaved(item.id) },
             )
             Spacer(Modifier.height(10.dp))
         }
 
         Spacer(Modifier.height(6.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text(
-                text = "전체 삭제",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(9.dp))
-                    .clickable { askClear = true }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+
+        if (picking) {
+            ShareSelectedButton(
+                count = picked.size,
+                onShare = {
+                    shareText(
+                        context,
+                        buildSavedShareText(items.filter { it.id in picked }, state.snapshot),
+                        "저장 목록 공유",
+                    )
+                    picking = false
+                    picked.clear()
+                },
             )
+        } else {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Text(
+                    text = "전체 삭제",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(9.dp))
+                        .clickable { askClear = true }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -150,6 +163,113 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
         )
     }
 }
+
+// ---------------------------------------------------------------- 헤더
+
+@Composable
+private fun SavedHeader(
+    picking: Boolean,
+    pickedCount: Int,
+    totalCount: Int,
+    loading: Boolean,
+    onStartPicking: () -> Unit,
+    onCancelPicking: () -> Unit,
+    onToggleAll: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(64.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (picking) "${pickedCount}개 선택" else "저장한 금액",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.6).sp,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Spacer(Modifier.weight(1f))
+
+        if (picking) {
+            TextAction(
+                text = if (pickedCount == totalCount) "선택 해제" else "전체 선택",
+                onClick = onToggleAll,
+            )
+            Spacer(Modifier.width(2.dp))
+            TextAction(text = "취소", onClick = onCancelPicking)
+        } else if (totalCount > 0) {
+            RoundAction(onClick = onStartPicking) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = "골라서 공유",
+                    modifier = Modifier.size(17.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            RoundAction(onClick = onRefresh, enabled = !loading) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(17.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = "환율 새로고침",
+                        modifier = Modifier.size(19.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextAction(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    )
+}
+
+@Composable
+private fun ShareSelectedButton(count: Int, onShare: () -> Unit) {
+    val enabled = count > 0
+    Text(
+        text = if (enabled) "${count}개 공유하기" else "공유할 항목을 골라 주세요",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+        color = if (enabled) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                if (enabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                }
+            )
+            .clickable(enabled = enabled, onClick = onShare)
+            .padding(vertical = 14.dp),
+    )
+}
+
+// ---------------------------------------------------------------- 목록
 
 @Composable
 private fun EmptyState() {
@@ -176,7 +296,7 @@ private fun EmptyState() {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "환산 화면에서 금액을 넣고 결과 카드의 ＋ 저장을 누르면\n" +
+            text = "홈 화면에서 금액을 넣고 결과 카드의 ＋ 저장을 누르면\n" +
                 "여기에 쌓입니다. 나중에 최신 환율로 다시 계산해 보여줍니다.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -227,13 +347,33 @@ private fun TotalCard(items: List<SavedItem>, snapshot: Snapshot?, now: Long) {
 }
 
 @Composable
-private fun SavedRow(item: SavedItem, currentRate: Double?, onDelete: () -> Unit) {
+private fun SavedRow(
+    item: SavedItem,
+    currentRate: Double?,
+    picking: Boolean,
+    checked: Boolean,
+    onToggle: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val rate = currentRate ?: item.rateAtSave
     val nowKrw = item.amount * rate
     val diff = nowKrw - item.krwAtSave
 
-    SectionCard(background = MaterialTheme.colorScheme.surface, corner = 18) {
+    SectionCard(
+        modifier = if (picking) Modifier.clickable(onClick = onToggle) else Modifier,
+        background = if (picking && checked) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        corner = 18,
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (picking) {
+                Checkbox(checked = checked, onCheckedChange = { onToggle() })
+                Spacer(Modifier.width(2.dp))
+            }
             Text(item.currency.flag, fontSize = 14.sp)
             Spacer(Modifier.width(8.dp))
             Text(
@@ -243,19 +383,35 @@ private fun SavedRow(item: SavedItem, currentRate: Double?, onDelete: () -> Unit
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onDelete),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "삭제",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                )
+            if (!picking) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onShare),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Share,
+                        contentDescription = "이 항목만 공유",
+                        modifier = Modifier.size(15.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onDelete),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "삭제",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                }
             }
         }
 
@@ -268,7 +424,7 @@ private fun SavedRow(item: SavedItem, currentRate: Double?, onDelete: () -> Unit
             )
             Spacer(Modifier.width(9.dp))
             Text(
-                text = "${format(item.amount, 2)} ${item.currencyCode}",
+                text = "${format(item.amount, item.currency.decimals)} ${item.currencyCode}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 3.dp),

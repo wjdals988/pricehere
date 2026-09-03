@@ -14,6 +14,13 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import kotlin.math.abs
 
+/** 나라별 팁 관행. 비율은 현지 통념이며 의무가 아니다. */
+data class TipGuide(
+    val flag: String,
+    val suggested: List<Int>,
+    val note: String,
+)
+
 /** 세금을 돌려받는 방식. 매장에서 바로 빼주느냐, 나중에 환급받느냐가 다르다. */
 enum class RefundMode { IMMEDIATE, REFUND }
 
@@ -99,14 +106,43 @@ enum class Currency(
     val cardFeePercent: Double,
     val cashSpreadPercent: Double,
     val taxRefund: TaxRefund?,
+    val tip: TipGuide,
 ) {
-    USD("USD", "미국 달러", "🇺🇸", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.75, null),
-    EUR("EUR", "유로", "🇪🇺", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97,
-        TaxRefund("🇪🇸", "스페인", 21.0, 0.0)),
-    JPY("JPY", "일본 엔", "🇯🇵", 100, 0, listOf(500, 1_000, 5_000, 10_000, 50_000), 1.2, 1.75,
-        TaxRefund.japan()),
-    CZK("CZK", "체코 코루나", "🇨🇿", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 8.0,
-        TaxRefund("🇨🇿", "체코", 21.0, 2001.0));
+    USD(
+        "USD", "미국 달러", "🇺🇸", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.75, null,
+        TipGuide(
+            "🇺🇸", listOf(15, 18, 20, 25),
+            "미국은 서비스 팁이 사실상 필수입니다. 식당은 세전 금액의 15~20%가 일반적이고, " +
+                "카페나 테이크아웃은 잔돈 정도면 충분합니다.",
+        ),
+    ),
+    EUR(
+        "EUR", "유로", "🇪🇺", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97,
+        TaxRefund("🇪🇸", "스페인", 21.0, 0.0),
+        TipGuide(
+            "🇪🇸", listOf(5, 10, 15),
+            "스페인은 팁이 의무가 아닙니다. 잔돈을 남기거나 5~10% 정도면 충분하고, " +
+                "계산서에 서비스료가 이미 포함된 경우도 있습니다.",
+        ),
+    ),
+    JPY(
+        "JPY", "일본 엔", "🇯🇵", 100, 0, listOf(500, 1_000, 5_000, 10_000, 50_000), 1.2, 1.75,
+        TaxRefund.japan(),
+        TipGuide(
+            "🇯🇵", listOf(0, 5, 10),
+            "일본은 팁 문화가 없습니다. 두고 나오면 오히려 돌려주려 하거나 당황하게 만들 수 있어서 " +
+                "0%가 정답입니다. 참고용으로만 계산해 보세요.",
+        ),
+    ),
+    CZK(
+        "CZK", "체코 코루나", "🇨🇿", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 8.0,
+        TaxRefund("🇨🇿", "체코", 21.0, 2001.0),
+        TipGuide(
+            "🇨🇿", listOf(5, 10, 15),
+            "체코는 5~10%가 일반적입니다. 카드로 낼 때 팁을 따로 못 올리는 곳이 많아 " +
+                "현금 잔돈을 남기는 방식이 흔합니다.",
+        ),
+    );
 
     val naverCode: String get() = "FX_${code}KRW"
 

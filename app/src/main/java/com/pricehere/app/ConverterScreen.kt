@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
@@ -61,8 +63,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,13 +76,19 @@ import kotlinx.coroutines.delay
 import java.time.Instant
 
 @Composable
-fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
+fun ConverterScreen(
+    viewModel: RatesViewModel,
+    state: UiState,
+    onOpenVersion: () -> Unit,
+) {
     val focus = LocalFocusManager.current
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val amountFocus = remember { FocusRequester() }
     var askMemo by remember { mutableStateOf(false) }
     var showUpdate by remember { mutableStateOf(false) }
+    var showTrend by remember { mutableStateOf(false) }
+    var showTip by remember { mutableStateOf(false) }
 
     // 새로고침 결과 배너는 잠깐만 보여준다.
     LaunchedEffect(state.outcome) {
@@ -97,11 +107,20 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
         }
     }
 
+    val scroll = rememberScrollState()
+    var inputFocused by remember { mutableStateOf(false) }
+
+    // 키보드가 올라올 때 화면 전체를 압축하지 않는다. 아래쪽만 가려지게 두고,
+    // 입력에 들어가면 위로 붙여 금액과 결과가 함께 보이도록 한다.
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    LaunchedEffect(inputFocused) {
+        if (inputFocused) scroll.animateScrollTo(0)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }
             .padding(horizontal = 20.dp),
     ) {
@@ -110,7 +129,7 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
             hasUpdate = state.hasUpdate,
             onRefresh = { viewModel.refresh(manual = true) },
             onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
-            onVersionClick = { if (state.hasUpdate) showUpdate = true },
+            onVersionClick = onOpenVersion,
         )
 
         if (state.snapshot?.source == RateSource.CACHE) {
@@ -128,6 +147,7 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
             code = state.fromCurrencyCode,
             value = state.input,
             focusRequester = amountFocus,
+            onFocusChange = { inputFocused = it },
             onValueChange = viewModel::onInputChange,
         )
 
@@ -161,12 +181,50 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
         Spacer(Modifier.height(14.dp))
         RateInfoCard(state = state, now = now)
 
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ToolChip(
+                glyph = "📈",
+                label = "환율 추이",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    showTrend = true
+                    if (state.history.isEmpty()) viewModel.loadHistory()
+                },
+            )
+            ToolChip(
+                glyph = "💵",
+                label = "팁 계산",
+                modifier = Modifier.weight(1f),
+                onClick = { showTip = true },
+            )
+        }
+
         if (state.selected.taxRefund != null) {
             Spacer(Modifier.height(12.dp))
             TaxRefundPanel(state = state, onToggle = viewModel::toggleRefund)
         }
 
         Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(imeBottom))
+    }
+
+    if (showTrend) {
+        TrendSheet(
+            currency = state.selected,
+            range = state.historyRange,
+            points = state.history,
+            loading = state.historyLoading,
+            onRangeChange = viewModel::loadHistory,
+            onDismiss = { showTrend = false },
+        )
+    }
+
+    if (showTip) {
+        TipSheet(state = state, onDismiss = { showTip = false })
     }
 
     if (showUpdate && state.update != null) {
@@ -208,44 +266,74 @@ private fun Header(
     onShare: () -> Unit,
     onVersionClick: () -> Unit,
 ) {
+    val dark = isDark()
+    val brand = Brush.linearGradient(
+        if (dark) {
+            listOf(Color(0xFF7BE6D0), Color(0xFF17A08C))
+        } else {
+            listOf(Color(0xFF17A08C), Color(0xFF05433A))
+        }
+    )
+
     Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp),
+        modifier = Modifier.fillMaxWidth().height(74.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "여긴얼마",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.6).sp,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(Modifier.width(9.dp))
-        Box {
-            Text(
-                text = APP_VERSION,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = if (hasUpdate) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .clickable(enabled = hasUpdate, onClick = onVersionClick)
-                    .padding(horizontal = 7.dp, vertical = 3.dp),
-            )
-            if (hasUpdate) {
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 3.dp, y = (-3).dp)
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Trend.rising)
+        // 아이콘과 같은 마크를 헤더에도 둔다. 앱을 열 때마다 브랜드가 먼저 눈에 들어온다.
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(brand),
+            contentAlignment = Alignment.Center,
+        ) {
+            SwapIcon(Color.White, sizeDp = 17)
+        }
+
+        Spacer(Modifier.width(11.dp))
+
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "여긴얼마",
+                    style = TextStyle(
+                        brush = brand,
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.9).sp,
+                    ),
                 )
+                Spacer(Modifier.width(8.dp))
+                Box {
+                    Text(
+                        text = APP_VERSION,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .clickable(onClick = onVersionClick)
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                    )
+                    if (hasUpdate) {
+                        Box(
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 3.dp, y = (-3).dp)
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Trend.rising)
+                        )
+                    }
+                }
             }
+            Text(
+                text = "지금 이 가격, 원화로",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 0.1.sp,
+            )
         }
 
         Spacer(Modifier.weight(1f))
@@ -344,6 +432,7 @@ private fun AmountCard(
     code: String,
     value: String,
     focusRequester: FocusRequester,
+    onFocusChange: (Boolean) -> Unit,
     onValueChange: (String) -> Unit,
 ) {
     Column(
@@ -366,7 +455,10 @@ private fun AmountCard(
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             visualTransformation = ThousandsTransformation,
-            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .onFocusChanged { onFocusChange(it.isFocused) },
             decorationBox = { field ->
                 if (value.isEmpty()) {
                     Text(
