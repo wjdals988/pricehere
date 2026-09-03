@@ -109,7 +109,7 @@ fun ConverterScreen(viewModel: RatesViewModel, state: UiState) {
             loading = state.loading,
             hasUpdate = state.hasUpdate,
             onRefresh = { viewModel.refresh(manual = true) },
-            onShare = { shareResult(context, state) },
+            onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
             onVersionClick = { if (state.hasUpdate) showUpdate = true },
         )
 
@@ -276,23 +276,6 @@ private fun Header(
             }
         }
     }
-}
-
-@Composable
-private fun RoundAction(
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-        content = { content() },
-    )
 }
 
 // ---------------------------------------------------------------- 통화 선택
@@ -855,36 +838,6 @@ private fun SaveDialog(state: UiState, onDismiss: () -> Unit, onConfirm: (String
 }
 
 // ---------------------------------------------------------------- 공유 / 복사
-
-private fun shareResult(context: Context, state: UiState) {
-    val rate = state.rate
-    val result = state.result
-    val body = if (rate == null || result == null) {
-        "여긴얼마 $APP_VERSION — 아직 환율을 불러오지 못했습니다."
-    } else {
-        buildString {
-            appendLine(
-                "${format(state.amount, state.fromDecimals)} ${state.fromCurrencyCode}" +
-                    " = ${format(result, state.toDecimals)} ${state.toCurrencyCode}"
-            )
-            appendLine()
-            appendLine("적용 환율  ${state.rateLabel}")
-            if (state.priceMode != PriceMode.BASE) {
-                appendLine("기준       ${state.priceMode.label} 수수료 ${formatFixed(state.feePercent, 2)}% 반영")
-            }
-            state.snapshot?.let {
-                appendLine("고시       ${it.source.label} · ${STAMP.format(Instant.ofEpochMilli(it.quotedAtMillis))}")
-            }
-            appendLine()
-            append("여긴얼마 · PriceHere $APP_VERSION")
-        }
-    }
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, body)
-    }
-    context.startActivity(Intent.createChooser(send, "환율 결과 공유"))
-}
 
 fun openUrl(context: Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }

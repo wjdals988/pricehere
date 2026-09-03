@@ -19,8 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -41,6 +45,7 @@ import java.time.Instant
 
 @Composable
 fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
+    val context = LocalContext.current
     var askClear by remember { mutableStateOf(false) }
     val items = state.saved
 
@@ -63,16 +68,36 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
             )
             Spacer(Modifier.weight(1f))
             if (items.isNotEmpty()) {
-                Text(
-                    text = "전체 삭제",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(9.dp))
-                        .clickable { askClear = true }
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                )
+                RoundAction(onClick = {
+                    shareText(context, buildSavedShareText(items, state.snapshot), "저장 목록 공유")
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.Share,
+                        contentDescription = "저장 목록 공유",
+                        modifier = Modifier.size(17.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                RoundAction(
+                    onClick = { viewModel.refresh(manual = true) },
+                    enabled = !state.loading,
+                ) {
+                    if (state.loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(17.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "환율 새로고침",
+                            modifier = Modifier.size(19.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
 
@@ -81,7 +106,7 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
             return@Column
         }
 
-        TotalCard(items = items, snapshot = state.snapshot)
+        TotalCard(items = items, snapshot = state.snapshot, now = System.currentTimeMillis())
 
         Spacer(Modifier.height(14.dp))
 
@@ -92,6 +117,20 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
                 onDelete = { viewModel.deleteSaved(item.id) },
             )
             Spacer(Modifier.height(10.dp))
+        }
+
+        Spacer(Modifier.height(6.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Text(
+                text = "전체 삭제",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(9.dp))
+                    .clickable { askClear = true }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
         }
 
         Spacer(Modifier.height(24.dp))
@@ -147,7 +186,7 @@ private fun EmptyState() {
 }
 
 @Composable
-private fun TotalCard(items: List<SavedItem>, snapshot: Snapshot?) {
+private fun TotalCard(items: List<SavedItem>, snapshot: Snapshot?, now: Long) {
     val total = items.sumOf { item ->
         val rate = snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave
         item.amount * rate
@@ -169,6 +208,20 @@ private fun TotalCard(items: List<SavedItem>, snapshot: Snapshot?) {
         if (kotlin.math.abs(diff) >= 1.0) {
             Spacer(Modifier.height(6.dp))
             DeltaText(diff)
+        }
+        if (snapshot != null) {
+            val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
+            Spacer(Modifier.height(9.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Dot(dotColor(snapshot.source, minutes))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "${snapshot.source.short} · " +
+                        "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 기준",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

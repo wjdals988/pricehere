@@ -212,6 +212,24 @@ fun DetailRow(
     }
 }
 
+/** 헤더 오른쪽에 놓는 원형 아이콘 버튼. */
+@Composable
+fun RoundAction(
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+        content = { content() },
+    )
+}
+
 @Composable
 fun Dot(color: Color, size: Int = 7) {
     Box(Modifier.size(size.dp).clip(CircleShape).background(color))
