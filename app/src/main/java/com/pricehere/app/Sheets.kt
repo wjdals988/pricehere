@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -96,7 +98,32 @@ fun TrendSheet(
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(10.dp))
+
+            // 기간을 바꿀 때는 이미 그려진 차트가 남아 있어서, 뭔가 하고 있다는 걸
+            // 따로 알려주지 않으면 눌린 건지 알 수 없다.
+            Box(modifier = Modifier.fillMaxWidth().height(24.dp)) {
+                if (loading) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "추이를 불러오는 중",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(2.dp))
 
             when {
                 loading && points.isEmpty() -> SheetPlaceholder(loading = true)
@@ -104,12 +131,23 @@ fun TrendSheet(
                 else -> {
                     val unit = currency.quoteUnit
                     val summary = points.summarize()
-                    LineChart(
-                        points = points,
-                        unit = unit,
-                        accent = MaterialTheme.colorScheme.primary,
-                        grid = MaterialTheme.colorScheme.outlineVariant,
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.alpha(if (loading) 0.3f else 1f)) {
+                            LineChart(
+                                points = points,
+                                unit = unit,
+                                accent = MaterialTheme.colorScheme.primary,
+                                grid = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                        }
+                        if (loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.5.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -128,16 +166,18 @@ fun TrendSheet(
                     }
 
                     Spacer(Modifier.height(14.dp))
-                    DetailRow("최저", "${formatFixed(summary.low * unit, 2)}원")
-                    DetailRow("최고", "${formatFixed(summary.high * unit, 2)}원")
-                    DetailRow("평균", "${formatFixed(summary.average * unit, 2)}원")
-                    DetailRow(
-                        label = "${range.label} 변동",
-                        value = "${if (summary.changePercent >= 0) "▲" else "▼"} " +
-                            "${formatFixed(kotlin.math.abs(summary.changePercent), 2)}%",
-                        emphasize = true,
-                        valueColor = trendColor(summary.changePercent >= 0),
-                    )
+                    Column(modifier = Modifier.alpha(if (loading) 0.4f else 1f)) {
+                        DetailRow("최저", "${formatFixed(summary.low * unit, 2)}원")
+                        DetailRow("최고", "${formatFixed(summary.high * unit, 2)}원")
+                        DetailRow("평균", "${formatFixed(summary.average * unit, 2)}원")
+                        DetailRow(
+                            label = "${range.label} 변동",
+                            value = "${if (summary.changePercent >= 0) "▲" else "▼"} " +
+                                "${formatFixed(kotlin.math.abs(summary.changePercent), 2)}%",
+                            emphasize = true,
+                            valueColor = trendColor(summary.changePercent >= 0),
+                        )
+                    }
                 }
             }
 

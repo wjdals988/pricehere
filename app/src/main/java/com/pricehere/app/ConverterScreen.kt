@@ -295,7 +295,7 @@ private fun Header(
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "여긴얼마",
+                    text = "여긴얼마?",
                     style = TextStyle(
                         brush = brand,
                         fontSize = 23.sp,

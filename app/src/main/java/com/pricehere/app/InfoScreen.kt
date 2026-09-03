@@ -251,7 +251,7 @@ private fun MakerCard() {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Spacer(Modifier.height(12.dp))
         Text(
-            text = "© $COPYRIGHT_YEAR $COPYRIGHT_HOLDER · 여긴얼마(PriceHere) · $APP_LICENSE",
+            text = "© $COPYRIGHT_YEAR $COPYRIGHT_HOLDER · 여긴얼마? (PriceHere) · $APP_LICENSE",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
         )

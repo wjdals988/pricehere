@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">여긴얼마</string>
+    <string name="app_name">여긴얼마?</string>
     <string name="w_name_rates">환율 보기</string>
     <string name="w_name_quick">빠른 계산</string>
-    <string name="w_name_keypad">여긴얼마 계산기</string>
+    <string name="w_name_keypad">환율 계산기</string>
     <string name="w_desc_rates">달러·유로·엔·코루나 환율을 홈 화면에서 바로 확인합니다.</string>
     <string name="w_desc_quick">통화와 금액을 골라 원화를 바로 계산합니다.</string>
     <string name="w_desc_keypad">위젯 안에서 금액을 직접 눌러 환산합니다.</string>

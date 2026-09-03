@@ -14,7 +14,7 @@ fun buildConversionShareText(state: UiState): String {
     val result = state.result
     val rate = state.rate
     if (result == null || rate == null) {
-        return "여긴얼마 $APP_VERSION — 아직 환율을 불러오지 못했습니다."
+        return "여긴얼마? $APP_VERSION — 아직 환율을 불러오지 못했습니다."
     }
 
     val fromFlag = state.fromFlag
@@ -36,12 +36,12 @@ fun buildConversionShareText(state: UiState): String {
             appendLine("반영   ${state.priceMode.label} 수수료 ${formatFixed(state.feePercent, 2)}%")
         }
         appendLine(RULE)
-        append("여긴얼마 $APP_VERSION · $DASHBOARD_HOST")
+        append("여긴얼마? $APP_VERSION · $DASHBOARD_HOST")
     }
 }
 
 fun buildSavedShareText(items: List<SavedItem>, snapshot: Snapshot?): String {
-    if (items.isEmpty()) return "여긴얼마 $APP_VERSION — 저장한 금액이 없습니다."
+    if (items.isEmpty()) return "여긴얼마? $APP_VERSION — 저장한 금액이 없습니다."
 
     fun rateOf(item: SavedItem) = snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave
 
@@ -73,7 +73,7 @@ fun buildSavedShareText(items: List<SavedItem>, snapshot: Snapshot?): String {
             )
         }
         appendLine(RULE)
-        append("여긴얼마 $APP_VERSION · $DASHBOARD_HOST")
+        append("여긴얼마? $APP_VERSION · $DASHBOARD_HOST")
     }
 }
 

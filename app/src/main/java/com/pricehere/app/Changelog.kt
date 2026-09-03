@@ -10,6 +10,16 @@ data class Release(
 /** 최신 버전이 맨 위. 배포할 때마다 여기에 한 블록씩 쌓는다. */
 val CHANGELOG: List<Release> = listOf(
     Release(
+        version = "1.8.0",
+        date = "2026-09-03",
+        headline = "이름에 물음표를, 차트에 로딩 표시를",
+        notes = listOf(
+            "앱 이름을 여긴얼마? 로 다듬었습니다",
+            "환율 추이를 불러올 때 진행 바와 스피너로 진행 상태를 알려줍니다",
+            "기간을 바꿔도 아무 반응이 없어 보이던 문제를 고쳤습니다",
+        ),
+    ),
+    Release(
         version = "1.7.0",
         date = "2026-09-03",
         headline = "환율 추이와 팁 계산",
