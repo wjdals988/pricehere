@@ -287,7 +287,7 @@ private fun Header(
                 .background(brand),
             contentAlignment = Alignment.Center,
         ) {
-            SwapIcon(Color.White, sizeDp = 17)
+            WonMark(Color.White, sizeDp = 21)
         }
 
         Spacer(Modifier.width(11.dp))

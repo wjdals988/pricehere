@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 13+ 테마 아이콘용 단색 레이어. 런처가 색을 다시 칠하므로 흰색으로만 그린다. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M43,72 L43,38" android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="7.5" android:strokeLineCap="round" />
-    <path android:pathData="M33,48 L43,38 L53,48" android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="7.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <path android:pathData="M65,36 L65,70" android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="7.5" android:strokeLineCap="round" />
-    <path android:pathData="M55,60 L65,70 L75,60" android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="7.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M36.2,37 L45.1,72.7 L54,44.6 L62.9,72.7 L71.8,37" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="7.6" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M32.8,52.3 L75.2,52.3" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.1" android:strokeLineCap="round" />
+    <path android:pathData="M32.8,62.5 L75.2,62.5" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.1" android:strokeLineCap="round" />
 </vector>

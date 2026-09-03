@@ -1,33 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  원화 기호(₩) 단독. 아이콘 콘테스트 11종 중 33/35로 1위.
+
+  삼성 등 런처는 108 캔버스의 안쪽 72 영역만 확대해 보여주므로,
+  마크를 그 안에서 0.85배로 줄여 시각적 여백을 확보했다.
+  잉크 경계는 47.5 x 43.3, 안전 원(중심 54,54 / r=36) 여유는 최악 7.6유닛.
+  바 사이 빈 간격 5.1유닛은 48dp에서 약 3.4px라 두 줄이 붙지 않는다.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 왼쪽: 위로 향하는 화살표 (흰색, 조금 더 굵게) -->
     <path
-        android:pathData="M43,72 L43,38"
+        android:pathData="M36.2,37 L45.1,72.7 L54,44.6 L62.9,72.7 L71.8,37"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="8"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M33,48 L43,38 L53,48"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="8"
+        android:strokeWidth="7.6"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
-
-    <!-- 오른쪽: 아래로 향하는 화살표 (민트, 조금 더 얇게) -->
     <path
-        android:pathData="M65,36 L65,70"
-        android:strokeColor="#FF8FE9D2"
-        android:strokeWidth="6.8"
+        android:pathData="M32.8,52.3 L75.2,52.3"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.1"
         android:strokeLineCap="round" />
     <path
-        android:pathData="M55,60 L65,70 L75,60"
-        android:strokeColor="#FF8FE9D2"
-        android:strokeWidth="6.8"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M32.8,62.5 L75.2,62.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.1"
+        android:strokeLineCap="round" />
 </vector>

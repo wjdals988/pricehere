@@ -235,6 +235,44 @@ fun Dot(color: Color, size: Int = 7) {
     Box(Modifier.size(size.dp).clip(CircleShape).background(color))
 }
 
+/**
+ * 런처 아이콘과 똑같은 ₩ 마크. 108 기준 좌표를 그대로 쓰므로
+ * ic_launcher_foreground.xml 과 형태가 어긋나지 않는다.
+ */
+@Composable
+fun WonMark(tint: Color, sizeDp: Int = 21) {
+    Canvas(Modifier.size(sizeDp.dp)) {
+        // 좌표는 런처 아이콘(ic_launcher_foreground.xml)과 같은 108 기준이다.
+        // 다만 런처는 캔버스를 확대해 보여주므로 아이콘 쪽에 여백을 뒀고,
+        // 헤더 타일에서는 그 여백이 필요 없으므로 여기서 다시 채워 넣는다.
+        val zoom = 2.09f
+        val k = size.minDimension / 108f
+        fun px(v: Float) = (54f + (v - 54f) * zoom) * k
+        val stroke = Stroke(width = 7.6f * zoom * k, cap = StrokeCap.Round, join = StrokeJoin.Round)
+
+        drawPath(
+            Path().apply {
+                moveTo(px(36.2f), px(37f))
+                lineTo(px(45.1f), px(72.7f))
+                lineTo(px(54f), px(44.6f))
+                lineTo(px(62.9f), px(72.7f))
+                lineTo(px(71.8f), px(37f))
+            },
+            color = tint,
+            style = stroke,
+        )
+        listOf(52.3f, 62.5f).forEach { y ->
+            drawLine(
+                color = tint,
+                start = Offset(px(32.8f), px(y)),
+                end = Offset(px(75.2f), px(y)),
+                strokeWidth = 5.1f * zoom * k,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
+
 /** 아이콘 라이브러리를 더 붙이지 않으려고 ⇅ 를 직접 그린다. */
 @Composable
 fun SwapIcon(tint: Color, sizeDp: Int = 18) {
