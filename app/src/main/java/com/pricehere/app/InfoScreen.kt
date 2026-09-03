@@ -51,7 +51,7 @@ fun InfoScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = Space.gutter),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().height(64.dp),
@@ -73,27 +73,27 @@ fun InfoScreen(
             onDismissUpdate = viewModel::dismissUpdate,
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
 
         ThemeCard(current = state.themeMode, onSelect = viewModel::setThemeMode)
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
 
         WidgetCard()
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
 
         SourceCard()
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
 
         MakerCard()
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
 
         LicenseCard()
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Space.l))
         Text(
             text = "이 앱은 환율 정보를 참고용으로만 제공합니다. " +
                 "실제 환전·결제 금액은 은행과 카드사의 고시 환율 및 수수료에 따라 달라집니다.",
@@ -102,7 +102,7 @@ fun InfoScreen(
             modifier = Modifier.padding(horizontal = 4.dp),
         )
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(Space.xl))
     }
 }
 
@@ -125,7 +125,7 @@ private fun VersionCard(
         }
     }
 
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
         Row(
             modifier = Modifier.fillMaxWidth().clickable { open = !open },
             verticalAlignment = Alignment.CenterVertically,
@@ -139,7 +139,7 @@ private fun VersionCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (update != null) {
-                        Spacer(Modifier.width(7.dp))
+                        Spacer(Modifier.width(Space.s))
                         Dot(Trend.rising, size = 7)
                     }
                 }
@@ -161,7 +161,7 @@ private fun VersionCard(
         }
 
         if (update != null) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Space.m))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "다운로드",
@@ -169,10 +169,10 @@ private fun VersionCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(Radius.pillShape)
                         .background(MaterialTheme.colorScheme.primary)
                         .clickable { open(context, update.downloadUrl ?: update.releaseUrl) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 Text(
                     text = "이 버전 넘기기",
@@ -180,7 +180,7 @@ private fun VersionCard(
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(Radius.pillShape)
                         .clickable(onClick = onDismissUpdate)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 )
@@ -189,31 +189,31 @@ private fun VersionCard(
 
         if (!open) return@SectionCard
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(Space.l))
         CHANGELOG.forEachIndexed { index, release ->
             ReleaseCard(release = release, latest = index == 0)
-            if (index != CHANGELOG.lastIndex) Spacer(Modifier.height(9.dp))
+            if (index != CHANGELOG.lastIndex) Spacer(Modifier.height(Space.s))
         }
     }
 }
 
 @Composable
 private fun ThemeCard(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerLow) {
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
         Text(
             text = "화면 테마",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Space.xs))
         Text(
             text = "홈 화면 위젯은 항상 기기 설정을 따릅니다.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Spacer(Modifier.height(Space.m))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ThemeMode.entries.forEach { mode ->
                 Pill(
                     text = mode.label,
@@ -228,14 +228,14 @@ private fun ThemeCard(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
 @Composable
 private fun MakerCard() {
     val context = LocalContext.current
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
         Text(
             text = "만든 사람",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Space.xs))
         Text(
             text = "$COPYRIGHT_HOLDER 이 직접 설계하고 만들었습니다. " +
                 "다른 프로젝트도 대시보드에 정리해 두었습니다.",
@@ -243,13 +243,13 @@ private fun MakerCard() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
         LinkRow("프로젝트 대시보드", DASHBOARD_URL) { open(context, DASHBOARD_URL) }
         LinkRow("GitHub", GITHUB_URL) { open(context, GITHUB_URL) }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
         Text(
             text = "© $COPYRIGHT_YEAR $COPYRIGHT_HOLDER · 여긴얼마? (PriceHere) · $APP_LICENSE",
             style = MaterialTheme.typography.labelSmall,
@@ -263,9 +263,9 @@ private fun LinkRow(title: String, url: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(Radius.pillShape)
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 2.dp),
+            .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -292,7 +292,7 @@ private fun LinkRow(title: String, url: String, onClick: () -> Unit) {
 @Composable
 private fun LicenseCard() {
     var open by remember { mutableStateOf(false) }
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerLow) {
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
         Row(
             modifier = Modifier.fillMaxWidth().clickable { open = !open },
             verticalAlignment = Alignment.CenterVertically,
@@ -315,12 +315,12 @@ private fun LicenseCard() {
 
         if (!open) return@SectionCard
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(Space.m))
 
         OPEN_SOURCE.forEach { entry ->
-            Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 Text(
                     text = entry.name,
                     style = MaterialTheme.typography.bodyMedium,
@@ -335,16 +335,16 @@ private fun LicenseCard() {
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(Space.m))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(Space.m))
         Text(
             text = "환율 데이터 고지",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Space.xs))
         Text(
             text = "매매기준율은 하나은행 고시 환율이며 네이버 마켓인덱스를 통해 조회합니다. " +
                 "보조 환율은 유럽중앙은행(ECB) 기준환율을 Frankfurter API로 받아옵니다. " +
@@ -364,20 +364,20 @@ private fun open(context: Context, url: String) {
 @Composable
 private fun WidgetCard() {
     val context = LocalContext.current
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
         Text(
             text = "홈 화면 위젯",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Space.xs))
         Text(
             text = "길게 눌러 직접 배치해도 되고, 아래에서 바로 추가할 수 있습니다.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
 
         WidgetRow("환율 보기", "4×2 · 네 통화 환율과 등락") {
             pinWidget(context, RateWidgetProvider::class.java)
@@ -394,7 +394,7 @@ private fun WidgetCard() {
 @Composable
 private fun WidgetRow(title: String, detail: String, onAdd: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -411,15 +411,17 @@ private fun WidgetRow(title: String, detail: String, onAdd: () -> Unit) {
             )
         }
         Text(
+            // 위젯 추가는 부차 기능이다. solid 딥틸 버튼 3개가 세로로 서 있으면
+            // 화면에서 가장 강한 요소가 되어 위계가 뒤집힌다.
             text = "추가",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimary,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primary)
+                .clip(Radius.pillShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 .clickable(onClick = onAdd)
-                .padding(horizontal = 14.dp, vertical = 7.dp),
+                .padding(horizontal = Space.l, vertical = Space.s),
         )
     }
 }
@@ -450,21 +452,22 @@ private fun SourceCard() {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Space.xs))
         Text(
             text = "앞의 것이 실패하면 자동으로 다음 순서로 넘어갑니다.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
 
-        SourceRow(1, "하나은행 매매기준율", "네이버 마켓인덱스 경유 · 고시회차마다 갱신", Freshness.fresh)
-        SourceRow(2, "ECB 기준환율", "Frankfurter API · 평일 16:00 CET 고시", Freshness.aging)
-        SourceRow(3, "오프라인 캐시", "마지막으로 성공한 환율을 기기에 보관", Freshness.stale)
+        // 우선순위는 순서가 이미 말해 준다. 색까지 쓰면 3번이 "오류"처럼 보인다.
+        SourceRow(1, "하나은행 매매기준율", "네이버 마켓인덱스 경유 · 고시회차마다 갱신")
+        SourceRow(2, "ECB 기준환율", "Frankfurter API · 평일 16:00 CET 고시")
+        SourceRow(3, "오프라인 캐시", "마지막으로 성공한 환율을 기기에 보관")
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.m))
         Text(
             text = "매매기준율은 은행이 고시하는 기준 환율입니다. " +
                 "카드 결제나 현찰 환전에는 여기에 수수료가 더 붙습니다.",
@@ -475,26 +478,26 @@ private fun SourceCard() {
 }
 
 @Composable
-private fun SourceRow(order: Int, title: String, detail: String, accent: androidx.compose.ui.graphics.Color) {
+private fun SourceRow(order: Int, title: String, detail: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Box(
             modifier = Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(accent.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "$order",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = accent,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.width(11.dp))
+        Spacer(Modifier.width(Space.m))
         Column {
             Text(
                 text = title,
@@ -513,13 +516,13 @@ private fun SourceRow(order: Int, title: String, detail: String, accent: android
 
 @Composable
 private fun ReleaseCard(release: Release, latest: Boolean) {
+    // 최신 버전만 순백으로 한 단 올려 구분한다. 색을 바꾸지 않고 명도만 쓴다.
     SectionCard(
         background = if (latest) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
+            MaterialTheme.colorScheme.surface
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
-        corner = 18,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -529,16 +532,16 @@ private fun ReleaseCard(release: Release, latest: Boolean) {
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (latest) {
-                Spacer(Modifier.width(7.dp))
+                Spacer(Modifier.width(Space.s))
                 Text(
                     text = "현재 버전",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(Radius.badgeShape)
                         .background(MaterialTheme.colorScheme.primary)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -549,7 +552,7 @@ private fun ReleaseCard(release: Release, latest: Boolean) {
             )
         }
 
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(Space.xs))
         Text(
             text = release.headline,
             style = MaterialTheme.typography.bodyMedium,
@@ -557,16 +560,16 @@ private fun ReleaseCard(release: Release, latest: Boolean) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(Modifier.height(11.dp))
+        Spacer(Modifier.height(Space.m))
         release.notes.forEach { note ->
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 verticalAlignment = Alignment.Top,
             ) {
-                Box(Modifier.padding(top = 7.dp)) {
+                Box(Modifier.padding(top = 8.dp)) {
                     Dot(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f), size = 4)
                 }
-                Spacer(Modifier.width(9.dp))
+                Spacer(Modifier.width(Space.s))
                 Text(
                     text = note,
                     style = MaterialTheme.typography.bodySmall,

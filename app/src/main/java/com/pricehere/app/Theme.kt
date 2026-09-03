@@ -3,11 +3,15 @@ package com.pricehere.app
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 /**
  * 다이내믹 컬러(월페이퍼 기반)를 일부러 쓰지 않는다.
@@ -19,16 +23,16 @@ private val Light = lightColorScheme(
     primaryContainer = Color(0xFFC7F1E5),
     onPrimaryContainer = Color(0xFF00201A),
     secondary = Color(0xFF4A635C),
-    background = Color(0xFFF6F8F8),
+    background = Color(0xFFEDF1F0),
     onBackground = Color(0xFF141C1A),
     surface = Color(0xFFFFFFFF),
     onSurface = Color(0xFF141C1A),
     surfaceVariant = Color(0xFFE6ECEA),
     onSurfaceVariant = Color(0xFF5B6B67),
-    surfaceContainerLow = Color(0xFFFFFFFF),
-    surfaceContainer = Color(0xFFF0F3F3),
-    surfaceContainerHigh = Color(0xFFE9EEED),
-    surfaceContainerHighest = Color(0xFFE2E9E7),
+    surfaceContainerLow = Color(0xFFF7F9F9),
+    surfaceContainer = Color(0xFFF3F6F5),
+    surfaceContainerHigh = Color(0xFFE6EDEB),
+    surfaceContainerHighest = Color(0xFFDCE5E3),
     outline = Color(0xFF8A9A96),
     outlineVariant = Color(0xFFDCE4E2),
     error = Color(0xFFB3261E),
@@ -43,16 +47,16 @@ private val Dark = darkColorScheme(
     primaryContainer = Color(0xFF005046),
     onPrimaryContainer = Color(0xFFC7F1E5),
     secondary = Color(0xFFB1CCC4),
-    background = Color(0xFF0E1513),
+    background = Color(0xFF0A0F0F),
     onBackground = Color(0xFFDDE4E1),
     surface = Color(0xFF161E1C),
     onSurface = Color(0xFFDDE4E1),
     surfaceVariant = Color(0xFF2A3532),
     onSurfaceVariant = Color(0xFF9FB0AB),
-    surfaceContainerLow = Color(0xFF161E1C),
-    surfaceContainer = Color(0xFF1A2321),
-    surfaceContainerHigh = Color(0xFF232D2A),
-    surfaceContainerHighest = Color(0xFF2D3835),
+    surfaceContainerLow = Color(0xFF131A19),
+    surfaceContainer = Color(0xFF1B2322),
+    surfaceContainerHigh = Color(0xFF232C2B),
+    surfaceContainerHighest = Color(0xFF2C3634),
     outline = Color(0xFF6A7A76),
     outlineVariant = Color(0xFF2E3936),
     error = Color(0xFFF2B8B5),
@@ -93,6 +97,51 @@ private val LocalIsDark = staticCompositionLocalOf { false }
 @Composable
 fun isDark(): Boolean = LocalIsDark.current
 
+/**
+ * 타이포 스케일. 토큰화 전에는 Material 기본 8종에 하드코딩 fontSize 9종(9·13·14·15·23·26sp)이
+ * 섞여 있어 위계가 흐릿했다. 여기서 여섯 단만 정의하고 화면에서는 이것만 쓴다.
+ * 숫자가 들어가는 스타일에는 tnum을 켜서 자릿수 폭을 맞춘다.
+ */
+private val Type = Typography(
+    headlineSmall = TextStyle(
+        fontSize = 23.sp, lineHeight = 29.sp,
+        fontWeight = FontWeight.Bold, letterSpacing = (-0.7).sp,
+    ),
+    titleMedium = TextStyle(
+        fontSize = 17.sp, lineHeight = 24.sp,
+        fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp,
+        fontFeatureSettings = Num.FEATURES,
+    ),
+    titleSmall = TextStyle(
+        fontSize = 15.sp, lineHeight = 21.sp,
+        fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp,
+    ),
+    bodyMedium = TextStyle(
+        fontSize = 14.sp, lineHeight = 21.sp,
+        fontWeight = FontWeight.Normal,
+        fontFeatureSettings = Num.FEATURES,
+    ),
+    bodySmall = TextStyle(
+        fontSize = 13.sp, lineHeight = 19.sp,
+        fontWeight = FontWeight.Normal,
+        fontFeatureSettings = Num.FEATURES,
+    ),
+    labelLarge = TextStyle(
+        fontSize = 13.sp, lineHeight = 18.sp,
+        fontWeight = FontWeight.Medium, letterSpacing = 0.1.sp,
+    ),
+    labelMedium = TextStyle(
+        fontSize = 12.sp, lineHeight = 17.sp,
+        fontWeight = FontWeight.Medium, letterSpacing = 0.1.sp,
+        fontFeatureSettings = Num.FEATURES,
+    ),
+    labelSmall = TextStyle(
+        fontSize = 11.5.sp, lineHeight = 16.sp,
+        fontWeight = FontWeight.Normal, letterSpacing = 0.1.sp,
+        fontFeatureSettings = Num.FEATURES,
+    ),
+)
+
 @Composable
 fun PriceHereTheme(
     mode: ThemeMode = ThemeMode.SYSTEM,
@@ -106,6 +155,7 @@ fun PriceHereTheme(
     CompositionLocalProvider(LocalIsDark provides dark) {
         MaterialTheme(
             colorScheme = if (dark) Dark else Light,
+            typography = Type,
             content = content,
         )
     }

@@ -66,7 +66,7 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = Space.gutter),
     ) {
         SavedHeader(
             picking = picking,
@@ -93,7 +93,7 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
 
         TotalCard(items = items, snapshot = state.snapshot, now = System.currentTimeMillis())
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(Space.l))
 
         items.forEach { item ->
             SavedRow(
@@ -113,10 +113,10 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
                 },
                 onDelete = { viewModel.deleteSaved(item.id) },
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(Space.m))
         }
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(Space.s))
 
         if (picking) {
             ShareSelectedButton(
@@ -139,14 +139,14 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(9.dp))
+                        .clip(Radius.badgeShape)
                         .clickable { askClear = true }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(Space.xl))
     }
 
     if (askClear) {
@@ -195,7 +195,7 @@ private fun SavedHeader(
                 text = if (pickedCount == totalCount) "선택 해제" else "전체 선택",
                 onClick = onToggleAll,
             )
-            Spacer(Modifier.width(2.dp))
+            Spacer(Modifier.width(Space.xs))
             TextAction(text = "취소", onClick = onCancelPicking)
         } else if (totalCount > 0) {
             RoundAction(onClick = onStartPicking) {
@@ -206,7 +206,7 @@ private fun SavedHeader(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(Space.s))
             RoundAction(onClick = onRefresh, enabled = !loading) {
                 if (loading) {
                     CircularProgressIndicator(
@@ -235,9 +235,9 @@ private fun TextAction(text: String, onClick: () -> Unit) {
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
-            .clip(RoundedCornerShape(9.dp))
+            .clip(Radius.badgeShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
     )
 }
 
@@ -256,7 +256,7 @@ private fun ShareSelectedButton(count: Int, onShare: () -> Unit) {
         },
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(Radius.pillShape)
             .background(
                 if (enabled) {
                     MaterialTheme.colorScheme.primary
@@ -265,7 +265,7 @@ private fun ShareSelectedButton(count: Int, onShare: () -> Unit) {
                 }
             )
             .clickable(enabled = enabled, onClick = onShare)
-            .padding(vertical = 14.dp),
+            .padding(vertical = 16.dp),
     )
 }
 
@@ -273,7 +273,7 @@ private fun ShareSelectedButton(count: Int, onShare: () -> Unit) {
 
 @Composable
 private fun EmptyState() {
-    Spacer(Modifier.height(60.dp))
+    Spacer(Modifier.height(48.dp))
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -287,14 +287,14 @@ private fun EmptyState() {
         ) {
             Text("🏷", fontSize = 26.sp)
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(Space.l))
         Text(
             text = "저장한 금액이 없습니다",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Space.s))
         Text(
             text = "홈 화면에서 금액을 넣고 결과 카드의 ＋ 저장을 누르면\n" +
                 "여기에 쌓입니다. 나중에 최신 환율로 다시 계산해 보여줍니다.",
@@ -320,21 +320,21 @@ private fun TotalCard(items: List<SavedItem>, snapshot: Snapshot?, now: Long) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(Space.s))
         Text(
             text = "${format(total, 0)}원",
             style = amountStyle(MaterialTheme.colorScheme.onSurface, size = 28),
         )
         if (kotlin.math.abs(diff) >= 1.0) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(Space.s))
             DeltaText(diff)
         }
         if (snapshot != null) {
             val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(Space.s))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Dot(dotColor(snapshot.source, minutes))
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(Space.s))
                 Text(
                     text = "${snapshot.source.short} · " +
                         "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 기준",
@@ -372,10 +372,10 @@ private fun SavedRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (picking) {
                 Checkbox(checked = checked, onCheckedChange = { onToggle() })
-                Spacer(Modifier.width(2.dp))
+                Spacer(Modifier.width(Space.xs))
             }
-            Text(item.currency.flag, fontSize = 14.sp)
-            Spacer(Modifier.width(8.dp))
+            Text(item.currency.flag, fontSize = Num.flag)
+            Spacer(Modifier.width(Space.s))
             Text(
                 text = item.memo,
                 style = MaterialTheme.typography.titleSmall,
@@ -415,25 +415,25 @@ private fun SavedRow(
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(Space.m))
 
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = "${format(nowKrw, 0)}원",
                 style = amountStyle(MaterialTheme.colorScheme.onSurface, size = 26),
             )
-            Spacer(Modifier.width(9.dp))
+            Spacer(Modifier.width(Space.s))
             Text(
                 text = "${format(item.amount, item.currency.decimals)} ${item.currencyCode}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 3.dp),
+                modifier = Modifier.padding(bottom = 4.dp),
             )
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(Space.m))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(9.dp))
+        Spacer(Modifier.height(Space.s))
 
         Row(
             modifier = Modifier.fillMaxWidth(),

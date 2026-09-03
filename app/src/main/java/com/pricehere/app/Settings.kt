@@ -29,7 +29,18 @@ class SettingsStore(context: Context) {
         prefs.edit().putString(KEY_DISMISSED, version).apply()
     }
 
+    /**
+     * 실행 횟수. 복사·저장 같은 기능 안내를 처음 몇 번만 보여주려고 센다.
+     * 안내가 영구히 떠 있으면 그건 안내가 아니라 노이즈다.
+     */
+    fun bumpLaunchCount(): Int {
+        val next = prefs.getInt(KEY_LAUNCHES, 0) + 1
+        prefs.edit().putInt(KEY_LAUNCHES, next).apply()
+        return next
+    }
+
     private companion object {
+        const val KEY_LAUNCHES = "launches"
         const val KEY_THEME = "themeMode"
         const val KEY_DISMISSED = "dismissedVersion"
     }

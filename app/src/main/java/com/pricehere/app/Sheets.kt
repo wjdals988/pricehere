@@ -70,7 +70,7 @@ fun TrendSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = Space.gutter)
                 .padding(bottom = 20.dp),
         ) {
             Text(
@@ -79,16 +79,16 @@ fun TrendSheet(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.height(3.dp))
+            Spacer(Modifier.height(Space.xs))
             Text(
                 text = "${currency.quoteUnit} ${currency.code} 기준 원화",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(Space.l))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HistoryRange.entries.forEach { r ->
                     Pill(
                         text = r.label,
@@ -98,7 +98,7 @@ fun TrendSheet(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(Space.m))
 
             // 기간을 바꿀 때는 이미 그려진 차트가 남아 있어서, 뭔가 하고 있다는 걸
             // 따로 알려주지 않으면 눌린 건지 알 수 없다.
@@ -109,11 +109,11 @@ fun TrendSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(3.dp)
-                                .clip(RoundedCornerShape(2.dp)),
+                                .clip(Radius.badgeShape),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         )
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(Space.xs))
                         Text(
                             text = "추이를 불러오는 중",
                             style = MaterialTheme.typography.labelSmall,
@@ -123,7 +123,7 @@ fun TrendSheet(
                 }
             }
 
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(Space.xs))
 
             when {
                 loading && points.isEmpty() -> SheetPlaceholder(loading = true)
@@ -148,7 +148,7 @@ fun TrendSheet(
                             )
                         }
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(Space.m))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -165,7 +165,7 @@ fun TrendSheet(
                         )
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(Space.l))
                     Column(modifier = Modifier.alpha(if (loading) 0.4f else 1f)) {
                         DetailRow("최저", "${formatFixed(summary.low * unit, 2)}원")
                         DetailRow("최고", "${formatFixed(summary.high * unit, 2)}원")
@@ -181,9 +181,9 @@ fun TrendSheet(
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(Space.l))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Space.m))
             Text(
                 text = "추이는 유럽중앙은행(ECB) 기준환율이라 홈 화면의 하나은행 매매기준율과 " +
                     "값이 조금 다릅니다. ECB는 영업일만 고시하므로 주말과 공휴일은 점이 없습니다.",
@@ -208,7 +208,7 @@ private fun SheetPlaceholder(loading: Boolean) {
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(Radius.cardShape)
             .background(MaterialTheme.colorScheme.surfaceContainer),
         contentAlignment = Alignment.Center,
     ) {
@@ -245,9 +245,9 @@ private fun LineChart(
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(Radius.cardShape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 14.dp, vertical = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 16.dp)
     ) {
         val w = size.width
         val h = size.height
@@ -315,7 +315,7 @@ fun TipSheet(state: UiState, onDismiss: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = Space.gutter)
                 .padding(bottom = 20.dp),
         ) {
             Text(
@@ -324,7 +324,7 @@ fun TipSheet(state: UiState, onDismiss: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.height(3.dp))
+            Spacer(Modifier.height(Space.xs))
             Text(
                 text = "계산서 ${format(bill, decimals)} ${currency.code}",
                 style = MaterialTheme.typography.labelSmall,
@@ -332,26 +332,26 @@ fun TipSheet(state: UiState, onDismiss: () -> Unit) {
             )
 
             if (bill <= 0.0 || base <= 0.0) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Space.l))
                 Text(
                     text = "홈 화면에서 금액을 먼저 입력해 주세요.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(Space.m))
                 TipNote(tip.note)
                 return@Column
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Space.l))
             Text(
                 text = "팁 비율",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Spacer(Modifier.height(Space.s))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 tip.suggested.forEach { p ->
                     Pill(text = "$p%", selected = p == percent, modifier = Modifier.weight(1f)) {
                         percent = p
@@ -359,15 +359,15 @@ fun TipSheet(state: UiState, onDismiss: () -> Unit) {
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Space.l))
             Text(
                 text = "나눠 낼 인원",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Spacer(Modifier.height(Space.s))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(1, 2, 3, 4, 5, 6).forEach { n ->
                     Pill(text = "$n", selected = n == people, modifier = Modifier.weight(1f)) {
                         people = n
@@ -375,7 +375,7 @@ fun TipSheet(state: UiState, onDismiss: () -> Unit) {
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(Space.l))
             SectionCard(background = MaterialTheme.colorScheme.primaryContainer, corner = 18) {
                 DetailRow(
                     label = "팁 $percent%",
@@ -400,7 +400,7 @@ fun TipSheet(state: UiState, onDismiss: () -> Unit) {
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(Space.l))
             TipNote(tip.note)
         }
     }
@@ -411,15 +411,146 @@ private fun TipNote(note: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(Radius.pillShape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 13.dp, vertical = 11.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        Text("ℹ", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(9.dp))
+        Text("ℹ", fontSize = Num.glyph, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(Space.s))
         Text(
             text = note,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+// ---------------------------------------------------------------- 세금 환급
+
+/**
+ * 접이식 패널이던 것을 시트로 옮겼다.
+ * 홈 화면에 카드가 여섯 개나 쌓여 주인공이 사라진 게 문제였고,
+ * 환급은 상시 기능이 아니라 필요할 때만 열면 된다.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RefundSheet(state: UiState, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val refund = state.selected.taxRefund ?: return
+    val currency = state.selected
+    val price = state.foreignAmount
+    val base = state.baseRate ?: 0.0
+    val decimals = currency.decimals
+    val code = currency.code
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = Space.gutter)
+                .padding(bottom = Space.gutter),
+        ) {
+            Text(
+                text = "${refund.countryFlag} 세금 환급 예상",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(Space.xs))
+            Text(
+                text = "${refund.countryName} · 부가세 ${format(refund.vatPercent, 0)}%",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (price <= 0.0 || base <= 0.0) {
+                Spacer(Modifier.height(Space.l))
+                Text(
+                    text = "홈 화면에서 금액을 먼저 입력해 주세요.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(Space.m))
+                RefundNote(refund)
+                return@Column
+            }
+
+            val vatPart = refund.vatIncludedIn(price)
+            val net = refund.estimatedRefund(price)
+            val after = price - net
+
+            Spacer(Modifier.height(Space.l))
+            SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
+                DetailRow(
+                    label = "구매 금액",
+                    value = "${format(price, decimals)} $code",
+                    sub = "${format(price * base, 0)}원",
+                )
+                DetailRow(
+                    label = "정가에 포함된 부가세",
+                    value = "${format(vatPart, decimals)} $code",
+                    sub = "${format(vatPart * base, 0)}원",
+                )
+                DetailRow(
+                    label = refund.benefitLabel,
+                    value = "${format(net, decimals)} $code",
+                    sub = "${format(net * base, 0)}원",
+                    emphasize = true,
+                    valueColor = MaterialTheme.colorScheme.primary,
+                )
+                DetailRow(
+                    label = if (refund.mode == RefundMode.IMMEDIATE) "면세가 실부담" else "환급 후 실부담",
+                    value = "${format(after, decimals)} $code",
+                    sub = "${format(after * base, 0)}원",
+                )
+            }
+
+            if (refund.minimumPurchase > 0 && price < refund.minimumPurchase) {
+                Spacer(Modifier.height(Space.m))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(Radius.pillShape)
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(horizontal = Space.m, vertical = Space.m)
+                ) {
+                    Text(
+                        text = "한 매장에서 하루 ${format(refund.minimumPurchase, 0)} $code 이상" +
+                            " 사야 환급을 신청할 수 있습니다. 현재 ${format(price, 0)} $code.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(Space.m))
+            RefundNote(refund)
+        }
+    }
+}
+
+@Composable
+private fun RefundNote(refund: TaxRefund) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(Radius.pillShape)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = Space.m, vertical = Space.m),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text("ℹ", fontSize = Num.glyph, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(Space.s))
+        Text(
+            text = refund.note
+                ?: ("환급액은 대행사·수령 방식(현금/카드)에 따라 달라집니다. " +
+                    "실수령률은 대행 수수료를 약 25%로 잡은 추정치이며, 공항에서 세관 확인을 받아야 합니다."),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -437,15 +568,15 @@ fun ToolChip(
 ) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(Radius.pillShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 9.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        Text(glyph, fontSize = 13.sp)
-        Spacer(Modifier.width(7.dp))
+        Text(glyph, fontSize = Num.glyph)
+        Spacer(Modifier.width(Space.s))
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,

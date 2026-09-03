@@ -47,6 +47,8 @@ data class UiState(
     val historyRange: HistoryRange = HistoryRange.MONTH,
     val history: List<RatePoint> = emptyList(),
     val historyLoading: Boolean = false,
+    /** 복사·저장을 처음 몇 번만 안내한다. */
+    val showHints: Boolean = false,
 ) {
     /** 설치된 버전보다 최신 릴리스가 있고, 사용자가 그 버전을 넘기지 않았을 때만 참. */
     val hasUpdate: Boolean get() = update != null
@@ -124,6 +126,7 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
             snapshot = repo.loadCache(),
             saved = store.load(),
             themeMode = settings.themeMode(),
+            showHints = settings.bumpLaunchCount() <= 3,
         )
     )
     val state = _state.asStateFlow()

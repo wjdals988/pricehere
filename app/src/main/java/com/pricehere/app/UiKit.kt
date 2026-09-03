@@ -116,8 +116,8 @@ fun SectionCard(
 @Composable
 fun CardHeader(flag: String, label: String, code: String, tint: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(flag, fontSize = 15.sp)
-        Spacer(Modifier.width(8.dp))
+        Text(flag, fontSize = Num.flag)
+        Spacer(Modifier.width(Space.s))
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
@@ -155,7 +155,7 @@ fun Pill(
     }
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(11.dp))
+            .clip(Radius.pillShape)
             .background(bg)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -181,7 +181,7 @@ fun DetailRow(
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -308,6 +308,52 @@ fun SwapIcon(tint: Color, sizeDp: Int = 18) {
             color = tint,
             style = stroke,
         )
+    }
+}
+
+/**
+ * 하단 탭 아이콘 3종. 이전에는 ⇅(직접 그림) + ★(Material 채움) + ⓘ(Material 채움)이
+ * 섞여 선과 면이 뒤죽박죽이었다. 세 개를 같은 선 두께로 직접 그려 통일한다.
+ */
+@Composable
+fun TagIcon(tint: Color, sizeDp: Int = 20) {
+    Canvas(Modifier.size(sizeDp.dp)) {
+        val k = size.minDimension / 24f
+        val w = 2.1f * k
+        drawPath(
+            Path().apply {
+                moveTo(7f * k, 4.4f * k)
+                lineTo(17f * k, 4.4f * k)
+                lineTo(17f * k, 19.6f * k)
+                lineTo(12f * k, 15.6f * k)
+                lineTo(7f * k, 19.6f * k)
+                close()
+            },
+            color = tint,
+            style = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+    }
+}
+
+@Composable
+fun InfoIcon(tint: Color, sizeDp: Int = 20) {
+    Canvas(Modifier.size(sizeDp.dp)) {
+        val k = size.minDimension / 24f
+        val w = 2.1f * k
+        drawCircle(
+            color = tint,
+            radius = 8.6f * k,
+            center = Offset(12f * k, 12f * k),
+            style = Stroke(width = w),
+        )
+        drawLine(
+            color = tint,
+            start = Offset(12f * k, 11.2f * k),
+            end = Offset(12f * k, 16.4f * k),
+            strokeWidth = w,
+            cap = StrokeCap.Round,
+        )
+        drawCircle(color = tint, radius = 1.3f * k, center = Offset(12f * k, 7.6f * k))
     }
 }
 
