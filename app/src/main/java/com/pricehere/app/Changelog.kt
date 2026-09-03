@@ -10,6 +10,15 @@ data class Release(
 /** 최신 버전이 맨 위. 배포할 때마다 여기에 한 블록씩 쌓는다. */
 val CHANGELOG: List<Release> = listOf(
     Release(
+        version = "2.0.1",
+        date = "2026-09-03",
+        headline = "저장 버튼이 제자리에 있습니다",
+        notes = listOf(
+            "금액 자릿수가 바뀔 때 저장 버튼이 좌우로 밀리던 문제를 고쳤습니다",
+            "결과 줄에 가중치가 두 번 걸려 남은 폭이 반씩 나뉘던 것이 원인이었습니다",
+        ),
+    ),
+    Release(
         version = "2.0.0",
         date = "2026-09-03",
         headline = "화면을 처음부터 다시 짰습니다",

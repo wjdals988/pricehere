@@ -500,9 +500,10 @@ private fun ConvertCard(
                     style = Num.amount(34).copy(color = ink),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    // 가중치를 숫자 쪽에만 준다. Spacer에도 weight를 주면 남은 폭이
+                    // 반씩 나뉘어 저장 버튼이 자릿수에 따라 좌우로 흔들린다.
+                    modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(Space.m))
                 Box(
                     modifier = Modifier
