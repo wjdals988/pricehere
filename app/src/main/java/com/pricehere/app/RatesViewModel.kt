@@ -75,12 +75,16 @@ data class UiState(
             PriceMode.CASH -> selected.cashSpreadPercent
         }
 
-    val amount: Double get() = input.toDoubleOrNull() ?: 0.0
+    /** 입력이 식이면 계산한 값. 0으로 나누면 null. */
+    val amountOrNull: Double? get() = Expression.evaluate(input)
+    val amount: Double get() = amountOrNull ?: 0.0
+    val isExpression: Boolean get() = Expression.hasOperator(input)
 
     /** 변환 결과. 환율이 아직 없으면 null. */
     val result: Double?
         get() {
             val r = rate ?: return null
+            val amount = amountOrNull ?: return null
             return if (foreignToKrw) amount * r else if (r == 0.0) null else amount / r
         }
 
@@ -223,29 +227,26 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 숫자와 소수점 1개만 남긴다. 콤마 삽입은 하지 않는다(표시 단계에서 처리). */
     fun onInputChange(raw: String) {
-        var seenDot = false
-        val cleaned = buildString {
-            for (ch in raw) {
-                when {
-                    ch.isDigit() -> append(ch)
-                    ch == '.' && !seenDot -> {
-                        seenDot = true
-                        append('.')
-                    }
-                }
-                if (length >= MAX_INPUT) break
-            }
-        }
-        _state.update { it.copy(input = cleaned) }
+        _state.update { it.copy(input = Expression.sanitize(raw, MAX_INPUT)) }
+    }
+
+    /** 키보드 위 연산자 칩. 규칙은 키보드로 친 것과 같다. */
+    fun appendOperator(op: Char) {
+        _state.update { it.copy(input = Expression.sanitize(it.input + op, MAX_INPUT)) }
     }
 
     /**
      * 빠른 금액은 누를 때마다 더한다(10 → 10, 다시 10 → 20).
      * 소수점 입력과 섞여도 오차가 생기지 않게 BigDecimal로 더하고, 입력 길이 한도를 넘으면 무시한다.
+     * 입력이 식이면 계산한 값에 더한다(20×3 에서 +10 → 70). 0으로 나눈 식이면 무시한다.
      */
     fun addQuickAmount(value: Long) {
         _state.update { s ->
-            val current = s.input.toBigDecimalOrNull() ?: BigDecimal.ZERO
+            val current = s.input.toBigDecimalOrNull()
+                ?: if (s.isExpression) {
+                    s.amountOrNull?.toBigDecimal()?.setScale(s.fromDecimals, RoundingMode.HALF_UP)
+                        ?: return@update s
+                } else BigDecimal.ZERO
             val next = current.add(BigDecimal.valueOf(value)).stripTrailingZeros().toPlainString()
             if (next.length > MAX_INPUT) s else s.copy(input = next)
         }
@@ -305,7 +306,7 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private companion object {
-        const val MAX_INPUT = 15
+        const val MAX_INPUT = 24
 
         /** 비공식 API를 보호하기 위한 수동 새로고침 최소 간격. */
         const val MIN_REFRESH_INTERVAL_MS = 2_000L

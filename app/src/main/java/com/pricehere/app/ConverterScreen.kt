@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,15 +17,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -54,26 +55,35 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import java.time.Instant
+import kotlinx.coroutines.delay
 
 @Composable
 fun ConverterScreen(
@@ -166,8 +176,11 @@ fun ConverterScreen(
         Spacer(Modifier.height(Space.m))
         QuickAmounts(
             values = state.quickAmounts,
+            // 포커스만 보면 뒤로 가기로 키보드를 닫은 뒤에도 연산자가 남는다. 키보드가 실제로 떠 있을 때만.
+            operators = inputFocused && imeBottom > 0.dp,
             canClear = state.input.isNotEmpty(),
             onAdd = viewModel::addQuickAmount,
+            onOperator = viewModel::appendOperator,
             onClear = viewModel::clearInput,
         )
 
@@ -433,16 +446,32 @@ private fun ConvertCard(
                 .clickable { focusRequester.requestFocus() }
                 .padding(horizontal = Space.gutter, vertical = Space.l),
         ) {
-            CardHeader(state.fromFlag, state.fromLabel, state.fromCurrencyCode, muted)
+            // 식이면 오른쪽 통화 코드 자리에 계산값을 보여준다. 줄이 새로 생기지 않아 카드가 흔들리지 않는다.
+            val headerRight = if (state.isExpression) {
+                "= " + (state.amountOrNull?.let { format(it, state.fromDecimals) } ?: "—") +
+                    " " + state.fromCurrencyCode
+            } else {
+                state.fromCurrencyCode
+            }
+            CardHeader(state.fromFlag, state.fromLabel, headerRight, muted)
             Spacer(Modifier.height(Space.s))
+            // 빠른 금액·연산자 칩으로 값이 바뀌면 커서를 끝으로 보낸다.
+            // 문자열만 넘기면 커서가 옛 위치에 남아 다음 입력이 중간에 끼어든다.
+            var field by remember { mutableStateOf(TextFieldValue(state.input)) }
+            if (field.text != state.input) {
+                field = TextFieldValue(state.input, TextRange(state.input.length))
+            }
             BasicTextField(
-                value = state.input,
-                onValueChange = onValueChange,
+                value = field,
+                onValueChange = {
+                    field = it
+                    onValueChange(it.text)
+                },
                 singleLine = true,
                 textStyle = Num.amount(34).copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                visualTransformation = ThousandsTransformation,
+                visualTransformation = ExpressionTransformation,
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
@@ -535,20 +564,40 @@ private fun ConvertCard(
 @Composable
 private fun QuickAmounts(
     values: List<Long>,
+    operators: Boolean,
     canClear: Boolean,
     onAdd: (Long) -> Unit,
+    onOperator: (Char) -> Unit,
     onClear: () -> Unit,
 ) {
     // 초기화는 스크롤 영역 밖 오른쪽에 고정한다. 칩 줄 끝에 붙이면 통화마다
     // 칩 개수·폭이 달라 위치가 바뀌고, 화면 밖으로 밀려나기도 한다.
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        val chips = rememberScrollState()
         Row(
-            modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .weight(1f)
+                .edgeFade(chips)
+                .horizontalScroll(chips),
             horizontalArrangement = Arrangement.spacedBy(Space.s),
         ) {
-            values.forEach { value ->
-                // "+"를 붙여 누를 때마다 더해진다는 것을 보여준다.
-                Pill(text = "+" + format(value.toDouble(), 0), selected = false) { onAdd(value) }
+            if (operators) {
+                // 시스템 숫자 키보드에는 연산자가 없다. 입력 중에는 이 줄이 연산자 키가 된다.
+                OPERATOR_CHIPS.forEach { (op, label) ->
+                    // 기호는 글자보다 작아 보여서 한 단계 크고 굵게 둔다. 칩 높이는 빠른 금액과 같다.
+                    Pill(
+                        text = label,
+                        selected = false,
+                        modifier = Modifier.width(52.dp),
+                        style = MaterialTheme.typography.titleMedium.copy(lineHeight = 17.sp),
+                        weight = FontWeight.SemiBold,
+                    ) { onOperator(op) }
+                }
+            } else {
+                values.forEach { value ->
+                    // "+"를 붙여 누를 때마다 더해진다는 것을 보여준다.
+                    Pill(text = "+" + format(value.toDouble(), 0), selected = false) { onAdd(value) }
+                }
             }
         }
         Spacer(Modifier.width(Space.s))
@@ -568,6 +617,34 @@ private fun QuickAmounts(
         )
     }
 }
+
+private val OPERATOR_CHIPS = listOf('+' to "+", '-' to "−", '*' to "×", '/' to "÷")
+
+/**
+ * 가로 스크롤 줄의 잘린 쪽 끝을 흐리게 한다. 칩이 반쯤 잘려 보이는 대신
+ * "옆으로 더 있다"는 신호가 된다. 끝까지 밀면 그쪽 페이드는 사라진다.
+ */
+private fun Modifier.edgeFade(state: ScrollState, width: Dp = 28.dp): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        val w = width.toPx()
+        if (state.canScrollForward) {
+            drawRect(
+                brush = Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - w, endX = size.width),
+                topLeft = Offset(size.width - w, 0f),
+                size = Size(w, size.height),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+        if (state.canScrollBackward) {
+            drawRect(
+                brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = 0f, endX = w),
+                size = Size(w, size.height),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+    }
 
 // ---------------------------------------------------------------- 환율 (조연)
 
