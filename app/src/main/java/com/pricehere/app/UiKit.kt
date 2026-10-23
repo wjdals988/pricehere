@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -121,7 +122,7 @@ fun CardHeader(flag: String, label: String, code: String, tint: Color) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             color = tint,
         )
         Spacer(Modifier.weight(1f))
@@ -158,13 +159,13 @@ fun Pill(
             .clip(Radius.pillShape)
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = fg,
             maxLines = 1,
         )
@@ -219,8 +220,10 @@ fun RoundAction(
     enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    // 보이는 원은 40dp, 누르는 영역은 Material 기준 48dp.
     Box(
         modifier = Modifier
+            .minimumInteractiveComponentSize()
             .size(40.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
