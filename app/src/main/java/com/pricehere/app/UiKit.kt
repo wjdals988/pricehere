@@ -141,6 +141,9 @@ fun Pill(
     text: String,
     selected: Boolean,
     modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.labelMedium,
+    /** 선택 안 된 상태의 굵기. 선택되면 항상 Bold. */
+    weight: FontWeight = FontWeight.Normal,
     onClick: () -> Unit,
 ) {
     val bg = if (selected) {
@@ -163,8 +166,8 @@ fun Pill(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            style = style,
+            fontWeight = if (selected) FontWeight.Bold else weight,
             color = fg,
             maxLines = 1,
         )
@@ -386,37 +389,21 @@ fun Chevron(tint: Color, expanded: Boolean, sizeDp: Int = 14) {
 // ---------------------------------------------------------------- 입력 표시
 
 /**
- * 입력창에 천단위 콤마를 "보여주기만" 한다. 실제 상태 문자열은 콤마 없는 원본이라
- * 파싱이 단순하고, OffsetMapping으로 커서 위치도 정확히 유지된다.
+ * 입력창에 천단위 콤마와 연산자 간격을 "보여주기만" 한다. 실제 상태 문자열은
+ * "1234+5" 같은 원본이라 파싱이 단순하고, 대응표로 커서 위치도 정확히 유지된다.
  */
-object ThousandsTransformation : VisualTransformation {
+object ExpressionTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = text.text
-        val dot = raw.indexOf('.')
-        val intPart = if (dot >= 0) raw.substring(0, dot) else raw
-        val tail = if (dot >= 0) raw.substring(dot) else ""
-
-        val grouped = buildString {
-            intPart.forEachIndexed { i, c ->
-                if (i > 0 && (intPart.length - i) % 3 == 0) append(',')
-                append(c)
-            }
-        }
-        val out = grouped + tail
-        val commas = grouped.length - intPart.length
-
+        val (out, map) = Expression.prettyWithMap(raw)
         val mapping = object : OffsetMapping {
-            override fun originalToTransformed(offset: Int): Int {
-                val o = offset.coerceIn(0, raw.length)
-                if (o > intPart.length) return (o + commas).coerceIn(0, out.length)
-                val added = if (o == 0) 0 else commas - (intPart.length - o) / 3
-                return (o + added).coerceIn(0, out.length)
-            }
+            override fun originalToTransformed(offset: Int): Int = map[offset.coerceIn(0, raw.length)]
 
             override fun transformedToOriginal(offset: Int): Int {
                 val o = offset.coerceIn(0, out.length)
-                val commasBefore = out.take(o).count { it == ',' }
-                return (o - commasBefore).coerceIn(0, raw.length)
+                var i = 0
+                while (i < raw.length && map[i + 1] <= o) i++
+                return i
             }
         }
         return TransformedText(AnnotatedString(out), mapping)
