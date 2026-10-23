@@ -121,7 +121,7 @@ fun CardHeader(flag: String, label: String, code: String, tint: Color) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             color = tint,
         )
         Spacer(Modifier.weight(1f))
@@ -164,7 +164,7 @@ fun Pill(
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = fg,
             maxLines = 1,
         )

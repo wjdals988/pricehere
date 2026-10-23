@@ -128,11 +128,11 @@ private val Type = Typography(
     ),
     labelLarge = TextStyle(
         fontSize = 13.sp, lineHeight = 18.sp,
-        fontWeight = FontWeight.Medium, letterSpacing = 0.1.sp,
+        fontWeight = FontWeight.SemiBold, letterSpacing = 0.1.sp,
     ),
     labelMedium = TextStyle(
         fontSize = 12.sp, lineHeight = 17.sp,
-        fontWeight = FontWeight.Medium, letterSpacing = 0.1.sp,
+        fontWeight = FontWeight.SemiBold, letterSpacing = 0.1.sp,
         fontFeatureSettings = Num.FEATURES,
     ),
     labelSmall = TextStyle(

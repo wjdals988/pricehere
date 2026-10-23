@@ -376,10 +376,6 @@ private fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .then(
-                        if (on && !dark) Modifier.shadow(2.dp, Radius.pillShape)
-                        else Modifier
-                    )
                     .clip(Radius.pillShape)
                     .background(if (on) activeBg else Color.Transparent)
                     .clickable { onSelect(currency) }
@@ -392,7 +388,7 @@ private fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
                 Text(
                     text = currency.code,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
                     color = if (on) {
                         MaterialTheme.colorScheme.onSurface
                     } else {
@@ -427,7 +423,6 @@ private fun ConvertCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(Elev.card, Radius.cardShape, clip = false)
             .clip(Radius.cardShape)
             .background(MaterialTheme.colorScheme.surface),
     ) {

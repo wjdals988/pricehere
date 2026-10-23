@@ -37,9 +37,11 @@ object Space {
     val xxl = 32.dp
 }
 
-/** 그림자는 한 겹만. 나머지 깊이는 배경 명도 차로 만든다. */
+/**
+ * 그림자는 카드 위에 떠 있는 버튼(스왑) 하나만 쓴다.
+ * 카드는 배경(#EDF1F0)과 흰 면의 명도 차로 구분한다. Wise·Revolut와 같은 방식.
+ */
 object Elev {
-    val card = 1.dp
     val floating = 3.dp
 }
 

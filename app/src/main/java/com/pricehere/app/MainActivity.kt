@@ -144,7 +144,7 @@ private fun BottomTabs(
                         } else {
                             tab.label
                         },
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(

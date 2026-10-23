@@ -177,7 +177,7 @@ private fun VersionCard(
                 Text(
                     text = "이 버전 넘기기",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .clip(Radius.pillShape)
@@ -324,7 +324,7 @@ private fun LicenseCard() {
                 Text(
                     text = entry.name,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
@@ -556,7 +556,7 @@ private fun ReleaseCard(release: Release, latest: Boolean) {
         Text(
             text = release.headline,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
