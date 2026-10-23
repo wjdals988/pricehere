@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -146,6 +148,7 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
     val state = _state.asStateFlow()
 
     private var lastFetchAtMillis = 0L
+    private var outcomeJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -190,7 +193,7 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
 
         val sinceLast = System.currentTimeMillis() - lastFetchAtMillis
         if (manual && current.snapshot != null && sinceLast < MIN_REFRESH_INTERVAL_MS) {
-            _state.update { it.copy(outcome = RefreshOutcome(null, null, throttled = true)) }
+            showOutcome(RefreshOutcome(null, null, throttled = true))
             return
         }
 
@@ -204,11 +207,14 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
                     it.copy(
                         snapshot = snapshot,
                         loading = false,
-                        outcome = RefreshOutcome(before, snapshot.rateOf(it.selected)),
                         error = if (snapshot.source == RateSource.CACHE) {
                             "네트워크에 연결할 수 없어 마지막으로 받아둔 환율을 쓰고 있습니다."
                         } else null,
                     )
+                }
+                // 캐시로 떨어졌을 때 "변동 없음 · 최신"이라고 하면 거짓말이 된다. 오프라인은 버튼 색이 알린다.
+                if (snapshot.source != RateSource.CACHE) {
+                    showOutcome(RefreshOutcome(before, snapshot.rateOf(_state.value.selected)))
                 }
             } catch (e: Exception) {
                 _state.update {
@@ -218,8 +224,17 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         }
     }
 
-    fun clearOutcome() {
-        if (_state.value.outcome != null) _state.update { it.copy(outcome = null) }
+    /**
+     * 새로고침 결과는 4초만 보여주고 출처·시각 줄로 돌아간다.
+     * 화면이 아니라 여기서 지워야 환산·저장 화면 어디서 눌러도 똑같이 사라진다.
+     */
+    private fun showOutcome(outcome: RefreshOutcome) {
+        outcomeJob?.cancel()
+        _state.update { it.copy(outcome = outcome) }
+        outcomeJob = viewModelScope.launch {
+            delay(OUTCOME_SHOWN_MS)
+            _state.update { it.copy(outcome = null) }
+        }
     }
 
     /**
@@ -354,6 +369,8 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
 
         /** 비공식 API를 보호하기 위한 수동 새로고침 최소 간격. */
         const val MIN_REFRESH_INTERVAL_MS = 2_000L
+
+        const val OUTCOME_SHOWN_MS = 4_000L
 
         const val KEY_INPUT = "input"
         const val KEY_DIRECTION = "foreignToKrw"

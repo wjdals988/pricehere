@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,7 +34,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -75,9 +73,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -106,14 +102,6 @@ fun ConverterScreen(
     var showTrend by remember { mutableStateOf(false) }
     var showTip by remember { mutableStateOf(false) }
     var showRefund by remember { mutableStateOf(false) }
-
-    // 새로고침 결과 문구는 잠깐만 보여주고 출처·시각 줄로 돌아간다.
-    LaunchedEffect(state.outcome) {
-        if (state.outcome != null) {
-            delay(4_000)
-            viewModel.clearOutcome()
-        }
-    }
 
     // 신선도 문구를 30초마다 다시 계산한다.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -672,10 +660,13 @@ private fun RateCard(
 
         if (snapshot != null) {
             val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
+            // 등락 배지와 새로고침 버튼이 오른쪽 끝에 위아래로 붙지 않도록 한 칸 띄운다.
+            Spacer(Modifier.height(Space.s))
             StatusLine(
                 snapshot = snapshot,
                 minutes = minutes,
                 unit = state.selected.quoteUnit,
+                code = state.selected.code,
                 outcome = state.outcome,
                 loading = state.loading,
                 onRefresh = onRefresh,
@@ -729,85 +720,6 @@ private fun ToolRow(
         ToolChip("💵", "팁 계산", onTip, Modifier.weight(1f))
         if (refund != null) {
             ToolChip(refund.countryFlag, "세금 환급", onRefund, Modifier.weight(1f))
-        }
-    }
-}
-
-/**
- * 출처·고시 시각 한 줄과 새로고침 버튼. 버튼 색이 곧 신선도다(초록 최신 · 주황 오래됨 · 빨강 오프라인/하루 넘음).
- * 새로고침 결과는 별도 배너를 띄우지 않고 이 줄의 문구만 잠깐 바꾼다. 줄 높이가 그대로라 아래 내용이 밀리지 않는다.
- */
-@Composable
-private fun StatusLine(
-    snapshot: Snapshot,
-    minutes: Long,
-    /** 은행 고시 단위. 엔화는 100이라 변동 폭도 100엔 기준으로 적어야 위의 환율과 맞는다. */
-    unit: Int,
-    outcome: RefreshOutcome?,
-    loading: Boolean,
-    onRefresh: () -> Unit,
-) {
-    val freshness = dotColor(snapshot.source, minutes)
-    val stale = freshness == Freshness.stale
-    val base = "${snapshot.source.short} · " +
-        "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 (${elapsed(minutes)})"
-    val (text, color) = when {
-        outcome == null -> base to
-            if (stale) freshness else MaterialTheme.colorScheme.onSurfaceVariant
-        outcome.throttled ->
-            "방금 확인했습니다 · 고시는 1~2분마다 바뀝니다" to MaterialTheme.colorScheme.onSurfaceVariant
-        outcome.changed ->
-            "갱신됨 · ${formatFixed((outcome.before ?: 0.0) * unit, 2)} → ${formatFixed((outcome.after ?: 0.0) * unit, 2)}원" to
-                MaterialTheme.colorScheme.primary
-        outcome.after != null -> "변동 없음 · 최신 상태입니다" to MaterialTheme.colorScheme.onSurfaceVariant
-        else -> base to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val confirmed = outcome != null && !outcome.throttled && outcome.after != null && !outcome.changed
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Crossfade(
-            targetState = text to color,
-            modifier = Modifier.weight(1f),
-            label = "status",
-        ) { (t, c) ->
-            Text(
-                text = t,
-                style = MaterialTheme.typography.bodySmall,
-                color = c,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
-        Spacer(Modifier.width(Space.s))
-        val state = when {
-            snapshot.source == RateSource.CACHE -> "오프라인"
-            stale -> "하루 넘게 지남"
-            freshness == Freshness.aging -> "조금 지남"
-            else -> "최신"
-        }
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(freshness.copy(alpha = 0.12f))
-                .clickable(enabled = !loading, onClick = onRefresh)
-                .semantics { contentDescription = "환율 새로고침, 현재 $state" },
-            contentAlignment = Alignment.Center,
-        ) {
-            when {
-                loading -> CircularProgressIndicator(
-                    modifier = Modifier.size(15.dp),
-                    strokeWidth = 2.dp,
-                    color = freshness,
-                )
-                else -> Icon(
-                    imageVector = if (confirmed) Icons.Filled.Check else Icons.Filled.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = freshness,
-                )
-            }
         }
     }
 }

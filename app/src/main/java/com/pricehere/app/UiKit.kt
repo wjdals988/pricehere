@@ -1,5 +1,6 @@
 package com.pricehere.app
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,18 +33,25 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.NumberFormat
+import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
 
 const val APP_VERSION = "v${BuildConfig.VERSION_NAME}"
 
@@ -407,5 +420,86 @@ object ExpressionTransformation : VisualTransformation {
             }
         }
         return TransformedText(AnnotatedString(out), mapping)
+    }
+}
+
+/**
+ * 출처·고시 시각 한 줄과 새로고침 버튼. 환산 화면과 저장 화면이 같이 쓴다. 버튼 색이 곧 신선도다(초록 최신 · 주황 오래됨 · 빨강 오프라인/하루 넘음).
+ * 새로고침 결과는 별도 배너를 띄우지 않고 이 줄의 문구만 잠깐 바꾼다. 줄 높이가 그대로라 아래 내용이 밀리지 않는다.
+ */
+@Composable
+fun StatusLine(
+    snapshot: Snapshot,
+    minutes: Long,
+    /** 은행 고시 단위. 엔화는 100이라 변동 폭도 100엔 기준으로 적어야 위의 환율과 맞는다. */
+    unit: Int,
+    /** 변동 문구에 붙일 통화 코드. 저장 화면처럼 통화가 섞인 곳에서도 무엇이 바뀐 건지 알 수 있게. */
+    code: String,
+    outcome: RefreshOutcome?,
+    loading: Boolean,
+    onRefresh: () -> Unit,
+) {
+    val freshness = dotColor(snapshot.source, minutes)
+    val stale = freshness == Freshness.stale
+    val base = "${snapshot.source.short} · " +
+        "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 (${elapsed(minutes)})"
+    val (text, color) = when {
+        outcome == null -> base to
+            if (stale) freshness else MaterialTheme.colorScheme.onSurfaceVariant
+        outcome.throttled ->
+            "방금 확인했습니다 · 고시는 1~2분마다 바뀝니다" to MaterialTheme.colorScheme.onSurfaceVariant
+        outcome.changed ->
+            "갱신됨 · $code ${formatFixed((outcome.before ?: 0.0) * unit, 2)} → ${formatFixed((outcome.after ?: 0.0) * unit, 2)}원" to
+                MaterialTheme.colorScheme.primary
+        outcome.after != null -> "변동 없음 · 최신 상태입니다" to MaterialTheme.colorScheme.onSurfaceVariant
+        else -> base to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val confirmed = outcome != null && !outcome.throttled && outcome.after != null && !outcome.changed
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Crossfade(
+            targetState = text to color,
+            modifier = Modifier.weight(1f),
+            label = "status",
+        ) { (t, c) ->
+            Text(
+                text = t,
+                style = MaterialTheme.typography.bodySmall,
+                color = c,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        Spacer(Modifier.width(Space.s))
+        val state = when {
+            snapshot.source == RateSource.CACHE -> "오프라인"
+            stale -> "하루 넘게 지남"
+            freshness == Freshness.aging -> "조금 지남"
+            else -> "최신"
+        }
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(freshness.copy(alpha = 0.12f))
+                .clickable(enabled = !loading, onClick = onRefresh)
+                .semantics { contentDescription = "환율 새로고침, 현재 $state" },
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                loading -> CircularProgressIndicator(
+                    modifier = Modifier.size(15.dp),
+                    strokeWidth = 2.dp,
+                    color = freshness,
+                )
+                else -> Icon(
+                    imageVector = if (confirmed) Icons.Filled.Check else Icons.Filled.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = freshness,
+                )
+            }
+        }
     }
 }
