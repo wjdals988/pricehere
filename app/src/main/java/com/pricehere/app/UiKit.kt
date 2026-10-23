@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -159,7 +158,7 @@ fun Pill(
             .clip(Radius.pillShape)
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -220,10 +219,8 @@ fun RoundAction(
     enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    // 보이는 원은 40dp, 누르는 영역은 Material 기준 48dp.
     Box(
         modifier = Modifier
-            .minimumInteractiveComponentSize()
             .size(40.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)

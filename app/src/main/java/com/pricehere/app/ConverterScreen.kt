@@ -510,7 +510,7 @@ private fun ConvertCard(
                         .clip(Radius.pillShape)
                         .background(ink.copy(alpha = 0.1f))
                         .clickable(onClick = onSave)
-                        .padding(horizontal = Space.m, vertical = Space.m),
+                        .padding(horizontal = Space.m, vertical = Space.s),
                 ) {
                     Text(
                         text = "＋ 저장",
@@ -564,7 +564,7 @@ private fun QuickAmounts(
             modifier = Modifier
                 .clip(Radius.pillShape)
                 .clickable(enabled = canClear, onClick = onClear)
-                .padding(horizontal = Space.m, vertical = Space.m),
+                .padding(horizontal = Space.m, vertical = Space.s),
         )
     }
 }
