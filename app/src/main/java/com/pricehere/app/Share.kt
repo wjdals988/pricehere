@@ -45,7 +45,7 @@ fun buildSavedShareText(items: List<SavedItem>, snapshot: Snapshot?): String {
 
     fun rateOf(item: SavedItem) = snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave
 
-    val total = items.sumOf { it.amount * rateOf(it) }
+    val total = items.sumOf { it.krwAt(rateOf(it)) }
     val totalAtSave = items.sumOf { it.krwAtSave }
     val diff = total - totalAtSave
 
@@ -53,11 +53,12 @@ fun buildSavedShareText(items: List<SavedItem>, snapshot: Snapshot?): String {
         appendLine("🏷 저장한 금액 ${items.size}개")
         appendLine()
         items.forEach { item ->
-            val krw = item.amount * rateOf(item)
+            val krw = item.krwAt(rateOf(item))
             appendLine(
                 "· ${item.memo}" +
                     "\n  ${item.currency.flag} ${format(item.amount, item.currency.decimals)} " +
-                    "${item.currencyCode} → ${format(krw, 0)}원"
+                    "${item.currencyCode} → ${format(krw, 0)}원" +
+                    if (item.mode != PriceMode.BASE) " (${item.mode.shortLabel})" else ""
             )
         }
         appendLine(RULE)

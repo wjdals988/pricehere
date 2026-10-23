@@ -309,8 +309,7 @@ private fun EmptyState() {
 private fun TotalCard(items: List<SavedItem>, state: UiState, now: Long, onRefresh: () -> Unit) {
     val snapshot = state.snapshot
     val total = items.sumOf { item ->
-        val rate = snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave
-        item.amount * rate
+        item.krwAt(snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave)
     }
     val totalAtSave = items.sumOf { it.krwAtSave }
     val diff = total - totalAtSave
@@ -356,8 +355,7 @@ private fun SavedRow(
     onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val rate = currentRate ?: item.rateAtSave
-    val nowKrw = item.amount * rate
+    val nowKrw = item.krwAt(currentRate ?: item.rateAtSave)
     val diff = nowKrw - item.krwAtSave
 
     SectionCard(
@@ -384,9 +382,11 @@ private fun SavedRow(
             )
             Spacer(Modifier.weight(1f))
             if (!picking) {
+                // 공유·삭제가 맞붙어 있어 Compose의 터치 영역 자동 확장(48dp)이 서로 겹친다.
+                // 보이는 크기 자체를 40dp로 키워 이웃 버튼을 잘못 누를 여지를 줄인다.
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .clickable(onClick = onShare),
                     contentAlignment = Alignment.Center,
@@ -400,7 +400,7 @@ private fun SavedRow(
                 }
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .clickable(onClick = onDelete),
                     contentAlignment = Alignment.Center,
@@ -442,6 +442,7 @@ private fun SavedRow(
         ) {
             Text(
                 text = "${DAY_STAMP.format(Instant.ofEpochMilli(item.savedAtMillis))} 저장 · " +
+                    (if (item.mode != PriceMode.BASE) "${item.mode.shortLabel} · " else "") +
                     "${format(item.krwAtSave, 0)}원",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

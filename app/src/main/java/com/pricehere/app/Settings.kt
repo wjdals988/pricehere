@@ -46,7 +46,15 @@ class SettingsStore(context: Context) {
         prefs.edit().putString(KEY_NETWORK_COUNTRY, iso.lowercase()).apply()
     }
 
+    /** 마지막으로 고른 결제 수단(기준율·카드·현찰). */
+    fun priceMode(): PriceMode = PriceMode.of(prefs.getString(KEY_PRICE_MODE, null))
+
+    fun setPriceMode(mode: PriceMode) {
+        prefs.edit().putString(KEY_PRICE_MODE, mode.name).apply()
+    }
+
     private companion object {
+        const val KEY_PRICE_MODE = "priceMode"
         const val KEY_NETWORK_COUNTRY = "networkCountry"
         const val KEY_LAUNCHES = "launches"
         const val KEY_THEME = "themeMode"

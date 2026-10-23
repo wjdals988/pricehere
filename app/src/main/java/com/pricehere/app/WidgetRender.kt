@@ -110,7 +110,7 @@ private fun compact(value: Long): String = when {
 private val DIGIT_KEYS = mapOf(
     R.id.k0 to "0", R.id.k1 to "1", R.id.k2 to "2", R.id.k3 to "3", R.id.k4 to "4",
     R.id.k5 to "5", R.id.k6 to "6", R.id.k7 to "7", R.id.k8 to "8", R.id.k9 to "9",
-    R.id.k00 to "00", R.id.k000 to "000", R.id.kdot to ".",
+    R.id.k00 to "00", R.id.kdot to ".",
     R.id.kdel to "DEL", R.id.kclr to "CLR",
     R.id.kadd to "+", R.id.ksub to "-", R.id.kmul to "*", R.id.kdiv to "/",
 )
