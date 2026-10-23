@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.MyExchanges" parent="@android:style/Theme.Material.NoActionBar" />
+
+    <!-- 텍스트 선택 메뉴에서 열리는 환산 카드. 원래 앱이 뒤에 비쳐 보인다. -->
+    <style name="Theme.MyExchanges.Overlay">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+    </style>
 </resources>

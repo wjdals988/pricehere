@@ -1,16 +1,20 @@
 package com.pricehere.app
 
+import android.content.Intent
 import android.os.Bundle
+import android.telephony.TelephonyManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -18,17 +22,18 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.util.Locale
 
 enum class Tab(val label: String) { HOME("홈"), SAVED("저장"), INFO("정보") }
 
@@ -39,12 +44,40 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) handleExternal(intent)
         setContent {
             val state by viewModel.state.collectAsState()
             PriceHereTheme(state.themeMode) {
                 AppShell(viewModel, state)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleExternal(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 여행지에 도착해 처음 열면 그 나라 통화로. 위치 권한 없이 통신망 국가만 본다.
+        val country = getSystemService(TelephonyManager::class.java)?.networkCountryIso.orEmpty()
+        viewModel.syncLocalCurrency(country)?.let { currency ->
+            val name = Locale("", country).getDisplayCountry(Locale.KOREAN)
+            Toast.makeText(this, "$name 통신망이라 ${currency.code}로 바꿨습니다", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun handleExternal(intent: Intent?) {
+        val code = intent?.getStringExtra(EXTRA_CURRENCY) ?: return
+        val amount = intent.getDoubleExtra(EXTRA_AMOUNT, 0.0).takeIf { it > 0 } ?: return
+        viewModel.openExternal(Currency.of(code), amount)
+        intent.removeExtra(EXTRA_CURRENCY)
+    }
+
+    companion object {
+        const val EXTRA_CURRENCY = "com.pricehere.app.CURRENCY"
+        const val EXTRA_AMOUNT = "com.pricehere.app.AMOUNT"
     }
 }
 
@@ -53,6 +86,9 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     // 홈에서 버전 칩을 누르면 정보 탭의 버전 카드를 펼친 상태로 열어준다.
     var openVersion by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.externalTick) {
+        if (state.externalTick > 0) tab = Tab.HOME
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

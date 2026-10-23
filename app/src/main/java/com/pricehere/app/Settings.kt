@@ -39,7 +39,15 @@ class SettingsStore(context: Context) {
         return next
     }
 
+    /** 마지막으로 본 통신망 국가. 나라가 바뀌었을 때만 통화를 자동으로 고르려고 기억한다. */
+    fun lastNetworkCountry(): String? = prefs.getString(KEY_NETWORK_COUNTRY, null)
+
+    fun setLastNetworkCountry(iso: String) {
+        prefs.edit().putString(KEY_NETWORK_COUNTRY, iso.lowercase()).apply()
+    }
+
     private companion object {
+        const val KEY_NETWORK_COUNTRY = "networkCountry"
         const val KEY_LAUNCHES = "launches"
         const val KEY_THEME = "themeMode"
         const val KEY_DISMISSED = "dismissedVersion"
