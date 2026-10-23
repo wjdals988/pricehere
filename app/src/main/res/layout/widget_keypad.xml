@@ -31,6 +31,7 @@
             android:src="@drawable/w_refresh" android:contentDescription="새로고침" />
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:id="@+id/w_display"
         android:orientation="vertical" android:background="@drawable/w_hero"
         android:padding="7dp" android:layout_marginTop="6dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -54,22 +55,26 @@
     </LinearLayout>
     <!--
       작은 위젯(3칸): 5열 x 4행. 행을 늘리면 키가 48dp 아래로 줄어 행 수는 그대로 둔다.
-      숫자 3열 · 연산자 1열 · 기능 1열. 남는 한 칸은 열기를 2칸으로 써서 채운다.
+      숫자 3열 · 연산자 1열 · 기능 1열. 앱은 표시 영역을 눌러 연다(열기 키 없음).
+      기능 열은 C와 ⌫가 2칸씩. C는 +에서 먼 위쪽에 두어 잘못 눌러 식을 날리는 일을 줄인다.
       2칸짜리 키가 있는 블록은 높이를 4dp(행 간격) + 2행분으로 잡아야 다른 행과 키 높이가 같아진다.
     -->
-    <LinearLayout style="@style/WKeyRow">
-        <TextView android:id="@+id/k7" style="@style/WKey.Digit" android:text="7" />
-        <TextView android:id="@+id/k8" style="@style/WKey.Digit" android:text="8" />
-        <TextView android:id="@+id/k9" style="@style/WKey.Digit" android:text="9" />
-        <TextView android:id="@+id/kdiv" style="@style/WKey.Op" android:text="÷" />
+    <LinearLayout style="@style/WKeyBlock">
+        <LinearLayout style="@style/WKeyBlockLeft" android:layout_weight="4" android:layout_width="12dp">
+            <LinearLayout style="@style/WKeyBlockRow">
+                <TextView android:id="@+id/k7" style="@style/WKey.Digit" android:text="7" />
+                <TextView android:id="@+id/k8" style="@style/WKey.Digit" android:text="8" />
+                <TextView android:id="@+id/k9" style="@style/WKey.Digit" android:text="9" />
+                <TextView android:id="@+id/kdiv" style="@style/WKey.Op.Last" android:text="÷" />
+            </LinearLayout>
+            <LinearLayout style="@style/WKeyBlockRow" android:layout_marginTop="4dp">
+                <TextView android:id="@+id/k4" style="@style/WKey.Digit" android:text="4" />
+                <TextView android:id="@+id/k5" style="@style/WKey.Digit" android:text="5" />
+                <TextView android:id="@+id/k6" style="@style/WKey.Digit" android:text="6" />
+                <TextView android:id="@+id/kmul" style="@style/WKey.Op.Last" android:text="×" />
+            </LinearLayout>
+        </LinearLayout>
         <TextView android:id="@+id/kclr" style="@style/WKey.Fn.Last" android:text="C" android:contentDescription="모두 지우기" />
-    </LinearLayout>
-    <LinearLayout style="@style/WKeyRow">
-        <TextView android:id="@+id/k4" style="@style/WKey.Digit" android:text="4" />
-        <TextView android:id="@+id/k5" style="@style/WKey.Digit" android:text="5" />
-        <TextView android:id="@+id/k6" style="@style/WKey.Digit" android:text="6" />
-        <TextView android:id="@+id/kmul" style="@style/WKey.Op" android:text="×" />
-        <TextView android:id="@+id/kdel" style="@style/WKey.Fn.Last" android:text="⌫" android:contentDescription="지우기" />
     </LinearLayout>
     <LinearLayout style="@style/WKeyBlock">
         <LinearLayout style="@style/WKeyBlockLeft" android:layout_weight="4" android:layout_width="12dp">
@@ -86,6 +91,6 @@
                 <TextView android:id="@+id/kadd" style="@style/WKey.Op.Last" android:text="+" />
             </LinearLayout>
         </LinearLayout>
-        <TextView android:id="@+id/kopen" style="@style/WKey.Fn.Last" android:text="열기" android:textSize="15sp" android:contentDescription="앱 열기" />
+        <TextView android:id="@+id/kdel" style="@style/WKey.Fn.Last" android:text="⌫" android:contentDescription="지우기" />
     </LinearLayout>
 </LinearLayout>
