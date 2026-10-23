@@ -27,6 +27,7 @@ enum class RefundMode { IMMEDIATE, REFUND }
 /**
  * 여행자 부가세 환급 정보. 미국처럼 제도가 없는 곳은 null로 둔다.
  * minimumPurchase 는 한 매장에서 하루에 사야 하는 최소 금액(해당 통화 기준), 0이면 하한 없음.
+ * minimumIsPreTax 가 참이면 그 최소 금액을 세금 뺀 가격과 비교한다(일본 "5,000엔 이상, 세금 제외").
  * netFactor 는 대행사 수수료를 뺀 실수령 비율이다. 즉시 면세는 수수료가 없어 1.0이다.
  */
 data class TaxRefund(
@@ -37,9 +38,18 @@ data class TaxRefund(
     val mode: RefundMode = RefundMode.REFUND,
     val netFactor: Double = AGENCY_NET_FACTOR,
     val note: String? = null,
+    val minimumIsPreTax: Boolean = false,
 ) {
     /** 정가에 이미 포함된 부가세액. 정가 × VAT/(100+VAT). */
     fun vatIncludedIn(price: Double): Double = price * vatPercent / (100.0 + vatPercent)
+
+    /** 최소 구매 금액과 비교할 가격. 정가(세금 포함) price에서 필요하면 세금을 뺀다. */
+    fun priceForMinimum(price: Double): Double =
+        if (minimumIsPreTax) price - vatIncludedIn(price) else price
+
+    /** 최소 구매 금액을 못 채웠으면 참. 하한이 없으면 늘 거짓. */
+    fun belowMinimum(price: Double): Boolean =
+        minimumPurchase > 0 && priceForMinimum(price) < minimumPurchase
 
     /** 수수료를 뺀 실수령 추정액. */
     fun estimatedRefund(price: Double): Double = vatIncludedIn(price) * netFactor
@@ -69,6 +79,7 @@ data class TaxRefund(
                     countryName = "일본",
                     vatPercent = 10.0,
                     minimumPurchase = 5_000.0,
+                    minimumIsPreTax = true,
                     mode = RefundMode.IMMEDIATE,
                     netFactor = 1.0,
                     note = "면세 매장에서 여권을 보여주면 계산할 때 소비세가 바로 빠집니다. " +
@@ -80,6 +91,7 @@ data class TaxRefund(
                     countryName = "일본",
                     vatPercent = 10.0,
                     minimumPurchase = 5_000.0,
+                    minimumIsPreTax = true,
                     mode = RefundMode.REFUND,
                     netFactor = 1.0,
                     note = "2026년 11월 개편된 제도입니다. 정가를 내고 출국 공항의 면세 단말기에서 " +

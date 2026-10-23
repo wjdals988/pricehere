@@ -30,6 +30,21 @@ enum class PriceMode(val label: String, val shortLabel: String) {
     BASE("매매기준율", "기준율"),
     CARD("카드 결제", "카드"),
     CASH("현찰 구입", "현찰"),
+    ;
+
+    /** 이 결제 수단의 수수료(%). 기준율이면 0. */
+    fun feePercent(currency: Currency): Double = when (this) {
+        BASE -> 0.0
+        CARD -> currency.cardFeePercent
+        CASH -> currency.cashSpreadPercent
+    }
+
+    /** 매매기준율에 이 결제 수단의 수수료를 씌운 환율. */
+    fun apply(base: Double, currency: Currency): Double = base * (1 + feePercent(currency) / 100.0)
+
+    companion object {
+        fun of(name: String?): PriceMode = entries.firstOrNull { it.name == name } ?: BASE
+    }
 }
 
 data class UiState(
@@ -66,19 +81,10 @@ data class UiState(
     val rate: Double?
         get() {
             val base = baseRate ?: return null
-            return when (priceMode) {
-                PriceMode.BASE -> base
-                PriceMode.CARD -> base * (1 + selected.cardFeePercent / 100.0)
-                PriceMode.CASH -> base * (1 + selected.cashSpreadPercent / 100.0)
-            }
+            return priceMode.apply(base, selected)
         }
 
-    val feePercent: Double
-        get() = when (priceMode) {
-            PriceMode.BASE -> 0.0
-            PriceMode.CARD -> selected.cardFeePercent
-            PriceMode.CASH -> selected.cashSpreadPercent
-        }
+    val feePercent: Double get() = priceMode.feePercent(selected)
 
     /** 입력이 식이면 계산한 값. 0으로 나누면 null. */
     val amountOrNull: Double? get() = Expression.evaluate(input)
@@ -140,6 +146,7 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
             snapshot = repo.loadCache(),
             saved = store.load(),
             themeMode = settings.themeMode(),
+            priceMode = settings.priceMode(),
             showHints = settings.bumpLaunchCount() <= 3,
             input = handle[KEY_INPUT] ?: "",
             foreignToKrw = handle[KEY_DIRECTION] ?: true,
@@ -326,7 +333,9 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         _state.update { it.copy(selected = currency, history = emptyList()) }
     }
 
+    /** "카드로 낼 거니까 카드"로 두고 쓰는 사람이 많아서, 앱을 다시 열어도 유지한다. */
     fun setPriceMode(mode: PriceMode) {
+        settings.setPriceMode(mode)
         _state.update { it.copy(priceMode = mode) }
     }
 
@@ -349,13 +358,16 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
 
     // ---------- 저장 목록 ----------
 
-    /** 저장은 항상 매매기준율 기준으로 남긴다. 수수료 모드는 화면에서 다시 씌운다. */
+    /**
+     * 환율은 매매기준율로 남기고, 그때 고른 결제 수단을 함께 남긴다.
+     * 저장 화면은 최신 기준율에 그 결제 수단의 수수료를 다시 씌워 보여준다.
+     */
     fun saveCurrent(memo: String): Boolean {
         val s = _state.value
         val base = s.baseRate ?: return false
         val foreign = s.foreignAmount
         if (foreign <= 0.0) return false
-        val items = store.add(memo, foreign, s.selected, base)
+        val items = store.add(memo, foreign, s.selected, base, s.priceMode)
         _state.update { it.copy(saved = items) }
         return true
     }

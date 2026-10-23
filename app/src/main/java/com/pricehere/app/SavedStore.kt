@@ -14,11 +14,17 @@ data class SavedItem(
     val memo: String,
     val amount: Double,
     val currencyCode: String,
+    /** 저장 시점의 매매기준율. 수수료는 mode로 따로 씌운다. */
     val rateAtSave: Double,
     val savedAtMillis: Long,
+    /** 저장할 때 고른 결제 수단. v2.5.4 이전 항목은 기준율로 읽는다. */
+    val mode: PriceMode = PriceMode.BASE,
 ) {
     val currency: Currency get() = Currency.of(currencyCode)
-    val krwAtSave: Double get() = amount * rateAtSave
+    val krwAtSave: Double get() = krwAt(rateAtSave)
+
+    /** 매매기준율 base에 이 항목의 결제 수단 수수료를 씌운 원화 금액. */
+    fun krwAt(base: Double): Double = amount * mode.apply(base, currency)
 }
 
 /** Room을 쓸 만한 규모가 아니라 SharedPreferences에 JSON 배열로 둔다. */
@@ -39,6 +45,7 @@ class SavedStore(context: Context) {
                     currencyCode = o.getString("currency"),
                     rateAtSave = o.getDouble("rate"),
                     savedAtMillis = o.getLong("savedAt"),
+                    mode = PriceMode.of(o.optString("mode", null)),
                 )
             }.sortedByDescending { it.savedAtMillis }
         } catch (e: Exception) {
@@ -46,7 +53,13 @@ class SavedStore(context: Context) {
         }
     }
 
-    fun add(memo: String, amount: Double, currency: Currency, rate: Double): List<SavedItem> {
+    fun add(
+        memo: String,
+        amount: Double,
+        currency: Currency,
+        rate: Double,
+        mode: PriceMode = PriceMode.BASE,
+    ): List<SavedItem> {
         val item = SavedItem(
             id = nextId(),
             memo = memo.trim().ifBlank { "이름 없는 항목" },
@@ -54,6 +67,7 @@ class SavedStore(context: Context) {
             currencyCode = currency.code,
             rateAtSave = rate,
             savedAtMillis = System.currentTimeMillis(),
+            mode = mode,
         )
         return persist(load() + item)
     }
@@ -79,6 +93,7 @@ class SavedStore(context: Context) {
                     .put("currency", item.currencyCode)
                     .put("rate", item.rateAtSave)
                     .put("savedAt", item.savedAtMillis)
+                    .put("mode", item.mode.name)
             )
         }
         prefs.edit().putString(KEY, array.toString()).apply()

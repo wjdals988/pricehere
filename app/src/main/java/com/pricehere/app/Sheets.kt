@@ -511,7 +511,7 @@ fun RefundSheet(state: UiState, onDismiss: () -> Unit) {
                 )
             }
 
-            if (refund.minimumPurchase > 0 && price < refund.minimumPurchase) {
+            if (refund.belowMinimum(price)) {
                 Spacer(Modifier.height(Space.m))
                 Box(
                     Modifier
@@ -521,8 +521,14 @@ fun RefundSheet(state: UiState, onDismiss: () -> Unit) {
                         .padding(horizontal = Space.m, vertical = Space.m)
                 ) {
                     Text(
-                        text = "한 매장에서 하루 ${format(refund.minimumPurchase, 0)} $code 이상" +
-                            " 사야 환급을 신청할 수 있습니다. 현재 ${format(price, 0)} $code.",
+                        text = if (refund.minimumIsPreTax) {
+                            "한 매장에서 하루 세금 제외 ${format(refund.minimumPurchase, 0)} $code 이상" +
+                                " 사야 면세받을 수 있습니다." +
+                                " 현재 세금 제외 ${format(refund.priceForMinimum(price), 0)} $code."
+                        } else {
+                            "한 매장에서 하루 ${format(refund.minimumPurchase, 0)} $code 이상" +
+                                " 사야 환급을 신청할 수 있습니다. 현재 ${format(price, 0)} $code."
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                     )

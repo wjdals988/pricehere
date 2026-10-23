@@ -29,9 +29,45 @@
     </style>
     <style name="WKey.Op">
         <item name="android:background">@drawable/w_key_op</item>
-        <item name="android:layout_marginEnd">0dp</item>
         <item name="android:textSize">26sp</item>
         <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:textColor">@color/w_accent</item>
+    </style>
+
+    <!-- 맨 오른쪽 열은 오른쪽 간격을 두지 않는다. 키 사이 간격은 모두 4dp. -->
+    <style name="WKey.Digit.Last"><item name="android:layout_marginEnd">0dp</item></style>
+    <style name="WKey.Fn.Last"><item name="android:layout_marginEnd">0dp</item></style>
+    <style name="WKey.Op.Last"><item name="android:layout_marginEnd">0dp</item></style>
+
+    <!--
+      키 행. 높이 0dp + weight 1, 위 간격은 padding이 아니라 margin으로 둔다.
+      margin은 weight로 나누기 전에 빠지므로 행마다 키 높이가 정확히 같아진다.
+    -->
+    <style name="WKeyRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+    <!-- 2칸짜리 키가 있는 2행 블록. 높이 4dp(안쪽 행 간격) + weight 2 = 2행분 + 간격. -->
+    <style name="WKeyBlock" parent="WKeyRow">
+        <item name="android:layout_height">4dp</item>
+        <item name="android:layout_weight">2</item>
+    </style>
+    <!--
+      블록 왼쪽 묶음. 폭은 레이아웃에서 "안쪽 간격 합 + 4dp"로, weight는 열 수로 준다.
+      그래야 블록 안 키 폭이 위 행 키 폭과 같아진다.
+    -->
+    <style name="WKeyBlockLeft">
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_marginEnd">4dp</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+    <style name="WKeyBlockRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">horizontal</item>
     </style>
 </resources>
