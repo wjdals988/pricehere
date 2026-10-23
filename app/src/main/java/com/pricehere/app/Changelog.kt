@@ -10,6 +10,16 @@ data class Release(
 /** 최신 버전이 맨 위. 배포할 때마다 여기에 한 블록씩 쌓는다. */
 val CHANGELOG: List<Release> = listOf(
     Release(
+        version = "2.5.1",
+        date = "2026-10-23",
+        headline = "정보 화면을 가볍게",
+        notes = listOf(
+            "만든 사람, 오픈소스 라이선스, 이용 고지를 화면 맨 아래 한 곳으로 모았습니다",
+            "오픈소스 라이선스는 아래에서 올라오는 시트로 봅니다",
+            "환율 데이터 출처 카드에서 홈 화면과 겹치는 수수료 설명을 뺐습니다",
+        ),
+    ),
+    Release(
         version = "2.5.0",
         date = "2026-10-23",
         headline = "새로고침 버튼이 환율 상태를 알려줍니다",
