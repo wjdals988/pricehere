@@ -27,8 +27,8 @@ android {
         applicationId = "com.pricehere.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.1.0"
+        versionCode = 14
+        versionName = "2.2.0"
     }
 
     signingConfigs {
@@ -91,4 +91,7 @@ dependencies {
     implementation(libs.androidx.material.icons.core)
     implementation(libs.androidx.ui.tooling.preview)
     debugImplementation(libs.androidx.ui.tooling)
+
+    // JVM 단위 테스트 전용. APK에는 들어가지 않는다.
+    testImplementation(libs.junit)
 }

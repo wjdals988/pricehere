@@ -239,8 +239,20 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(input = cleaned) }
     }
 
-    fun setQuickAmount(value: Long) {
-        _state.update { it.copy(input = value.toString()) }
+    /**
+     * 빠른 금액은 누를 때마다 더한다(10 → 10, 다시 10 → 20).
+     * 소수점 입력과 섞여도 오차가 생기지 않게 BigDecimal로 더하고, 입력 길이 한도를 넘으면 무시한다.
+     */
+    fun addQuickAmount(value: Long) {
+        _state.update { s ->
+            val current = s.input.toBigDecimalOrNull() ?: BigDecimal.ZERO
+            val next = current.add(BigDecimal.valueOf(value)).stripTrailingZeros().toPlainString()
+            if (next.length > MAX_INPUT) s else s.copy(input = next)
+        }
+    }
+
+    fun clearInput() {
+        _state.update { it.copy(input = "") }
     }
 
     fun select(currency: Currency) {

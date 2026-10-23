@@ -34,24 +34,40 @@ object WidgetPrefs {
         prefs(c).edit().putString(K_INPUT, v).apply()
     }
 
-    /** 키패드 한 글자 입력을 현재 문자열에 반영한다. */
-    fun applyKey(current: String, key: String): String = when (key) {
-        "DEL" -> current.dropLast(1)
-        "CLR" -> ""
-        "." -> when {
-            current.contains('.') -> current
-            current.isEmpty() -> "0."
-            else -> "$current."
-        }
-        else -> when {
+    /**
+     * 키패드 한 번 누름을 현재 식에 반영한다.
+     * 숫자 규칙(앞자리 0, 소수점 하나)은 식 전체가 아니라 마지막 숫자 토큰에 적용한다.
+     */
+    fun applyKey(current: String, key: String): String {
+        val token = current.takeLastWhile { it !in Expression.OPS }
+        val head = current.dropLast(token.length)
+        return when {
+            key == "DEL" -> current.dropLast(1)
+            key == "CLR" -> ""
+            key.length == 1 && key[0] in Expression.OPS -> when {
+                // 맨 앞에는 연산자를 둘 수 없다(음수 금액은 받지 않는다).
+                current.isEmpty() -> current
+                // 연산자를 연달아 누르면 마지막 것으로 바꾼다.
+                current.last() in Expression.OPS -> current.dropLast(1) + key
+                // "12." 처럼 소수점만 남은 채면 소수점을 떼고 붙인다.
+                else -> current.trimEnd('.') + key
+            }.takeIf { it.length <= MAX } ?: current
+            key == "." -> when {
+                '.' in token -> current
+                token.isEmpty() -> "${current}0."
+                else -> "$current."
+            }.takeIf { it.length <= MAX } ?: current
             current.length + key.length > MAX -> current
-            current == "0" && key != "00" -> key
-            current.isEmpty() && key == "00" -> current
+            // 토큰이 비었을 때 00·000은 의미가 없다.
+            token.isEmpty() && key.startsWith("00") -> current
+            // "0" 다음 숫자는 0을 대체한다. 00·000은 0 그대로 둔다.
+            token == "0" -> if (key.all { it == '0' }) current else head + key
             else -> current + key
         }
     }
 
-    private const val MAX = 12
+    /** 식이 들어오면서 길어진다. 위젯 한 줄에 무리 없이 보이는 길이로 묶는다. */
+    private const val MAX = 20
 }
 
 object WidgetHub {

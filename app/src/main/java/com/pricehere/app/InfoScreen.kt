@@ -385,7 +385,7 @@ private fun WidgetCard() {
         WidgetRow("빠른 계산", "4×2 · 통화와 금액을 골라 환산") {
             pinWidget(context, QuickWidgetProvider::class.java)
         }
-        WidgetRow("환율 계산기", "4×5 · 위젯 안에서 금액 입력") {
+        WidgetRow("환율 계산기", "4×3 · 위젯 안에서 사칙연산으로 계산") {
             pinWidget(context, KeypadWidgetProvider::class.java)
         }
     }

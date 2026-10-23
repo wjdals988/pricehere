@@ -73,7 +73,7 @@ private fun bindChange(
     views.setTextColor(id, context.getColor(if (rising) R.color.w_up else R.color.w_down))
 }
 
-// ---------------------------------------------------------------- 4×3 빠른 계산
+// ---------------------------------------------------------------- 4×2 빠른 계산
 
 fun renderQuickWidget(context: Context): RemoteViews {
     val views = RemoteViews(context.packageName, R.layout.widget_quick)
@@ -104,13 +104,14 @@ private fun compact(value: Long): String = when {
     else -> format(value.toDouble(), 0)
 }
 
-// ---------------------------------------------------------------- 4×5 키패드
+// ---------------------------------------------------------------- 키패드 계산기
 
 private val DIGIT_KEYS = mapOf(
     R.id.k0 to "0", R.id.k1 to "1", R.id.k2 to "2", R.id.k3 to "3", R.id.k4 to "4",
     R.id.k5 to "5", R.id.k6 to "6", R.id.k7 to "7", R.id.k8 to "8", R.id.k9 to "9",
     R.id.k00 to "00", R.id.k000 to "000", R.id.kdot to ".",
     R.id.kdel to "DEL", R.id.kclr to "CLR",
+    R.id.kadd to "+", R.id.ksub to "-", R.id.kmul to "*", R.id.kdiv to "/",
 )
 
 fun renderKeypadWidget(context: Context): RemoteViews {
@@ -143,8 +144,9 @@ private class WidgetSnapshot(
     val input: String,
 ) {
     val rate: Double? get() = snapshot?.rateOf(currency)
-    val amount: Double get() = input.toDoubleOrNull() ?: 0.0
-    val result: Double? get() = rate?.let { amount * it }
+    /** 계산기 위젯은 식(20+15)을 넣을 수 있다. 0으로 나누면 null. */
+    val amount: Double? get() = Expression.evaluate(input)
+    val result: Double? get() = rate?.let { r -> amount?.let { it * r } }
 }
 
 private fun readState(context: Context) = WidgetSnapshot(
@@ -185,10 +187,13 @@ private fun bindHeader(
 private fun bindHero(context: Context, views: RemoteViews, state: WidgetSnapshot) {
     val currency = state.currency
     val unit = currency.quoteUnit
-    views.setTextViewText(
-        R.id.w_amount,
-        "${format(state.amount, currency.decimals)} ${currency.code}",
-    )
+    // 식이면 입력한 그대로(1,000 + 500), 숫자 하나면 통화 자릿수에 맞춰 보여준다.
+    val amountText = if (Expression.hasOperator(state.input)) {
+        Expression.pretty(state.input)
+    } else {
+        format(state.amount ?: 0.0, currency.decimals)
+    }
+    views.setTextViewText(R.id.w_amount, "$amountText ${currency.code}")
     views.setTextViewText(
         R.id.w_result,
         state.result?.let { "${format(it, 0)}원" } ?: "—",

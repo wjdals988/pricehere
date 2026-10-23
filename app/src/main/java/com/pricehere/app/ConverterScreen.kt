@@ -164,7 +164,12 @@ fun ConverterScreen(
         )
 
         Spacer(Modifier.height(Space.m))
-        QuickAmounts(state.quickAmounts, viewModel::setQuickAmount)
+        QuickAmounts(
+            values = state.quickAmounts,
+            canClear = state.input.isNotEmpty(),
+            onAdd = viewModel::addQuickAmount,
+            onClear = viewModel::clearInput,
+        )
 
         Spacer(Modifier.height(Space.l))
         RateCard(state = state, now = now, onPriceMode = viewModel::setPriceMode)
@@ -533,14 +538,39 @@ private fun ConvertCard(
 }
 
 @Composable
-private fun QuickAmounts(values: List<Long>, onPick: (Long) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(Space.s),
-    ) {
-        values.forEach { value ->
-            Pill(text = format(value.toDouble(), 0), selected = false) { onPick(value) }
+private fun QuickAmounts(
+    values: List<Long>,
+    canClear: Boolean,
+    onAdd: (Long) -> Unit,
+    onClear: () -> Unit,
+) {
+    // 초기화는 스크롤 영역 밖 오른쪽에 고정한다. 칩 줄 끝에 붙이면 통화마다
+    // 칩 개수·폭이 달라 위치가 바뀌고, 화면 밖으로 밀려나기도 한다.
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Space.s),
+        ) {
+            values.forEach { value ->
+                // "+"를 붙여 누를 때마다 더해진다는 것을 보여준다.
+                Pill(text = "+" + format(value.toDouble(), 0), selected = false) { onAdd(value) }
+            }
         }
+        Spacer(Modifier.width(Space.s))
+        Text(
+            text = "초기화",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = if (canClear) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            },
+            modifier = Modifier
+                .clip(Radius.pillShape)
+                .clickable(enabled = canClear, onClick = onClear)
+                .padding(horizontal = Space.m, vertical = Space.s),
+        )
     }
 }
 

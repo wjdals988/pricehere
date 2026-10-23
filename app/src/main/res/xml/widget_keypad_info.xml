@@ -1,10 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  One UI는 targetCellHeight가 아니라 예전 공식 칸 수 = ceil((min + 30) / 70)으로 크기를 정한다.
+  minHeight 360dp는 이 공식으로 6칸(최대 5칸으로 잘림)이 되어 4x5로 놓였다(v2.1.0, SM-S931N 확인).
+  180dp → ceil(210/70) = 3칸. 실제 높이는 칸 수 x 런처 행 높이로 정해지므로 minHeight가 작아도
+  위젯이 180dp로 그려지지는 않는다. 키 크기를 키우려고 이 값을 올리면 칸 수가 늘어난다.
+
+  실측(SM-S931N, 5열 홈 그리드, uiautomator 픽셀): 1칸 69dp, 2칸 185dp → 행 간격 116dp.
+  고정 영역(통화 칩 + 결과 + 여백) 91.5dp. 키 높이 = (위젯 높이 - 91.5 - 16) / 4.
+    2칸 185dp → 키 19dp (실측, 쓸 수 없음)
+    3칸 약 301dp → 키 약 48dp
+  하한도 3칸으로 둔다. 2칸까지 줄이면 키가 손가락보다 작아진다.
+  주의: 홈 페이지가 비어 있으면 One UI가 놓은 뒤 위젯을 키우는 경우가 있었다(4x3 → 5x5).
+  크기는 dumpsys가 아니라 실제 화면 픽셀로 확인할 것.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
-    android:minHeight="360dp"
-    android:minResizeWidth="220dp"
-    android:minResizeHeight="330dp"
-    android:maxResizeHeight="480dp"
+    android:minHeight="180dp"
+    android:minResizeWidth="250dp"
+    android:minResizeHeight="180dp"
     android:targetCellWidth="4"
     android:targetCellHeight="3"
     android:resizeMode="horizontal|vertical"
