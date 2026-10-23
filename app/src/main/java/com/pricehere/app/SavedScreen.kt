@@ -19,11 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -72,7 +70,6 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
             picking = picking,
             pickedCount = picked.size,
             totalCount = items.size,
-            loading = state.loading,
             onStartPicking = { picking = true; picked.clear() },
             onCancelPicking = { picking = false; picked.clear() },
             onToggleAll = {
@@ -83,7 +80,6 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
                     picked.addAll(items.map { it.id })
                 }
             },
-            onRefresh = { viewModel.refresh(manual = true) },
         )
 
         if (items.isEmpty()) {
@@ -91,7 +87,12 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
             return@Column
         }
 
-        TotalCard(items = items, snapshot = state.snapshot, now = System.currentTimeMillis())
+        TotalCard(
+            items = items,
+            state = state,
+            now = System.currentTimeMillis(),
+            onRefresh = { viewModel.refresh(manual = true) },
+        )
 
         Spacer(Modifier.height(Space.l))
 
@@ -171,11 +172,9 @@ private fun SavedHeader(
     picking: Boolean,
     pickedCount: Int,
     totalCount: Int,
-    loading: Boolean,
     onStartPicking: () -> Unit,
     onCancelPicking: () -> Unit,
     onToggleAll: () -> Unit,
-    onRefresh: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().height(64.dp),
@@ -205,23 +204,6 @@ private fun SavedHeader(
                     modifier = Modifier.size(17.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            Spacer(Modifier.width(Space.s))
-            RoundAction(onClick = onRefresh, enabled = !loading) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(17.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = "환율 새로고침",
-                        modifier = Modifier.size(19.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
         }
     }
@@ -306,7 +288,8 @@ private fun EmptyState() {
 }
 
 @Composable
-private fun TotalCard(items: List<SavedItem>, snapshot: Snapshot?, now: Long) {
+private fun TotalCard(items: List<SavedItem>, state: UiState, now: Long, onRefresh: () -> Unit) {
+    val snapshot = state.snapshot
     val total = items.sumOf { item ->
         val rate = snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave
         item.amount * rate
@@ -332,16 +315,15 @@ private fun TotalCard(items: List<SavedItem>, snapshot: Snapshot?, now: Long) {
         if (snapshot != null) {
             val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
             Spacer(Modifier.height(Space.s))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Dot(dotColor(snapshot.source, minutes))
-                Spacer(Modifier.width(Space.s))
-                Text(
-                    text = "${snapshot.source.short} · " +
-                        "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 기준",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            StatusLine(
+                snapshot = snapshot,
+                minutes = minutes,
+                unit = state.selected.quoteUnit,
+                code = state.selected.code,
+                outcome = state.outcome,
+                loading = state.loading,
+                onRefresh = onRefresh,
+            )
         }
     }
 }

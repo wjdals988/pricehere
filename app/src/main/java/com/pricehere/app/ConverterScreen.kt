@@ -73,6 +73,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -101,14 +103,6 @@ fun ConverterScreen(
     var showTip by remember { mutableStateOf(false) }
     var showRefund by remember { mutableStateOf(false) }
 
-    // 새로고침 결과 배너는 잠깐만 보여준다.
-    LaunchedEffect(state.outcome) {
-        if (state.outcome != null) {
-            delay(4_000)
-            viewModel.clearOutcome()
-        }
-    }
-
     // 신선도 문구를 30초마다 다시 계산한다.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -136,9 +130,7 @@ fun ConverterScreen(
             .padding(horizontal = Space.gutter),
     ) {
         Header(
-            loading = state.loading,
             hasUpdate = state.hasUpdate,
-            onRefresh = { viewModel.refresh(manual = true) },
             onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
             onVersionClick = onOpenVersion,
         )
@@ -185,7 +177,12 @@ fun ConverterScreen(
         )
 
         Spacer(Modifier.height(Space.l))
-        RateCard(state = state, now = now, onPriceMode = viewModel::setPriceMode)
+        RateCard(
+            state = state,
+            now = now,
+            onRefresh = { viewModel.refresh(manual = true) },
+            onPriceMode = viewModel::setPriceMode,
+        )
 
         Spacer(Modifier.height(Space.m))
         ToolRow(
@@ -254,9 +251,7 @@ fun ConverterScreen(
 
 @Composable
 private fun Header(
-    loading: Boolean,
     hasUpdate: Boolean,
-    onRefresh: () -> Unit,
     onShare: () -> Unit,
     onVersionClick: () -> Unit,
 ) {
@@ -339,23 +334,6 @@ private fun Header(
                 modifier = Modifier.size(17.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-        Spacer(Modifier.width(Space.s))
-        RoundAction(onClick = onRefresh, enabled = !loading) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(17.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.Refresh,
-                    contentDescription = "환율 새로고침",
-                    modifier = Modifier.size(19.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
     }
 }
@@ -658,7 +636,12 @@ private fun Modifier.edgeFade(state: ScrollState, width: Dp = 28.dp): Modifier =
  * 수수료 pill이 카드 밖에 떠 있으면 무엇을 조작하는 컨트롤인지 알 수 없다.
  */
 @Composable
-private fun RateCard(state: UiState, now: Long, onPriceMode: (PriceMode) -> Unit) {
+private fun RateCard(
+    state: UiState,
+    now: Long,
+    onRefresh: () -> Unit,
+    onPriceMode: (PriceMode) -> Unit,
+) {
     val snapshot = state.snapshot
     val change = state.change
 
@@ -677,23 +660,17 @@ private fun RateCard(state: UiState, now: Long, onPriceMode: (PriceMode) -> Unit
 
         if (snapshot != null) {
             val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
+            // 등락 배지와 새로고침 버튼이 오른쪽 끝에 위아래로 붙지 않도록 한 칸 띄운다.
             Spacer(Modifier.height(Space.s))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Dot(dotColor(snapshot.source, minutes))
-                Spacer(Modifier.width(Space.s))
-                Text(
-                    text = "${snapshot.source.label} · " +
-                        "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 " +
-                        "(${elapsed(minutes)})",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        state.outcome?.let { outcome ->
-            Spacer(Modifier.height(Space.m))
-            RefreshBanner(outcome)
+            StatusLine(
+                snapshot = snapshot,
+                minutes = minutes,
+                unit = state.selected.quoteUnit,
+                code = state.selected.code,
+                outcome = state.outcome,
+                loading = state.loading,
+                onRefresh = onRefresh,
+            )
         }
 
         Spacer(Modifier.height(Space.l))
@@ -744,46 +721,6 @@ private fun ToolRow(
         if (refund != null) {
             ToolChip(refund.countryFlag, "세금 환급", onRefund, Modifier.weight(1f))
         }
-    }
-}
-
-@Composable
-private fun RefreshBanner(outcome: RefreshOutcome) {
-    val text = when {
-        outcome.throttled ->
-            "방금 확인했습니다. 하나은행 고시는 보통 1~2분마다 갱신됩니다."
-        outcome.changed ->
-            "환율이 갱신되었습니다 · " +
-                "${formatFixed(outcome.before ?: 0.0, 2)} → ${formatFixed(outcome.after ?: 0.0, 2)}원"
-        outcome.after != null ->
-            "최신 상태입니다 · 직전 조회 이후 변동 없음"
-        else -> return
-    }
-    val accent = if (outcome.changed) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(Radius.pillShape)
-            .background(accent.copy(alpha = 0.10f))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = if (outcome.changed) "↻" else "✓",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = accent,
-        )
-        Spacer(Modifier.width(Space.s))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = accent,
-        )
     }
 }
 
