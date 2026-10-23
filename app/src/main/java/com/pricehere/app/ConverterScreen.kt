@@ -521,7 +521,12 @@ private fun ConvertCard(
                 .padding(horizontal = Space.gutter, vertical = Space.l),
         ) {
             val ink = MaterialTheme.colorScheme.onPrimaryContainer
-            CardHeader(state.toFlag, state.toLabel, state.toCurrencyCode, ink.copy(alpha = 0.66f))
+            // 원화 결과는 코드(KRW) 대신 "약 3만 7천원"으로 감을 준다. 만 원 미만은 코드 그대로.
+            val toRight = state.result
+                ?.takeIf { state.toCurrencyCode == "KRW" }
+                ?.let(::approxWon)
+                ?: state.toCurrencyCode
+            CardHeader(state.toFlag, state.toLabel, toRight, ink.copy(alpha = 0.66f))
             Spacer(Modifier.height(Space.s))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(

@@ -49,6 +49,8 @@ data class UiState(
     val historyLoading: Boolean = false,
     /** 복사·저장을 처음 몇 번만 안내한다. */
     val showHints: Boolean = false,
+    /** 외부에서 금액이 들어올 때마다 1씩 오른다. 화면은 이 값이 바뀌면 홈 탭으로 간다. */
+    val externalTick: Int = 0,
 ) {
     /** 설치된 버전보다 최신 릴리스가 있고, 사용자가 그 버전을 넘기지 않았을 때만 참. */
     val hasUpdate: Boolean get() = update != null
@@ -254,6 +256,34 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearInput() {
         _state.update { it.copy(input = "") }
+    }
+
+    /**
+     * 해외 통신망에 처음 붙었을 때 그 나라 통화로 바꾼다. 바꿨으면 그 통화를 돌려준다.
+     * 같은 나라 안에서는 다시 건드리지 않아, 사용자가 고른 통화가 유지된다.
+     */
+    fun syncLocalCurrency(country: String): Currency? {
+        if (country.isBlank()) return null
+        val target = LocalCurrency.decide(country, settings.lastNetworkCountry(), _state.value.selected)
+        settings.setLastNetworkCountry(country)
+        target ?: return null
+        select(target)
+        _state.update { it.copy(foreignToKrw = true) }
+        return target
+    }
+
+    /** 다른 앱의 텍스트 선택 메뉴에서 "앱에서 열기"로 넘어온 값. */
+    fun openExternal(currency: Currency, amount: Double) {
+        select(currency)
+        val input = BigDecimal(amount).setScale(currency.decimals, RoundingMode.HALF_UP)
+            .stripTrailingZeros().toPlainString()
+        _state.update {
+            it.copy(
+                foreignToKrw = true,
+                input = Expression.sanitize(input, MAX_INPUT),
+                externalTick = it.externalTick + 1,
+            )
+        }
     }
 
     fun select(currency: Currency) {
