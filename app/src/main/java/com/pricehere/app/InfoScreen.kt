@@ -6,11 +6,15 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.annotation.DrawableRes
+import androidx.annotation.RawRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -41,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -218,8 +224,9 @@ private fun ThemeCard(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
 
 /**
  * 만든 사람·라이선스·고지는 기능이 아니므로 카드로 세우지 않고 맨 아래에 작고 흐리게 모은다.
- * 링크 글자는 작아도 누르는 영역은 48dp를 지킨다.
+ * 링크 글자는 작아도 누르는 영역은 48dp를 지킨다. 좁은 화면에서는 링크 줄이 알아서 접힌다.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InfoFooter() {
     val context = LocalContext.current
@@ -233,18 +240,24 @@ private fun InfoFooter() {
             color = muted,
         )
         // 링크의 누르는 영역이 왼쪽으로 8dp 나가 있으므로, 글자를 윗줄과 맞추려고 그만큼 당긴다.
-        Row(Modifier.offset(x = (-8).dp)) {
-            FooterLink("대시보드 ↗") { open(context, DASHBOARD_URL) }
-            FooterLink("GitHub ↗") { open(context, GITHUB_URL) }
+        // 바깥으로 나가는 링크는 목적지의 아이콘이나 ↗, 앱 안에서 열리는 것은 ›로 구분한다.
+        FlowRow(Modifier.offset(x = -Space.s)) {
+            FooterLink("대시보드", R.drawable.ic_globe) { open(context, DASHBOARD_URL) }
+            FooterLink("GitHub", R.drawable.ic_github) { open(context, GITHUB_URL) }
+            FooterLink("문제 신고 ↗") { open(context, ISSUES_URL) }
             FooterLink("오픈소스 라이선스 ›") { showLicenses = true }
         }
-        Text(
-            text = "환율은 참고용입니다. 하나은행 매매기준율은 네이버 마켓인덱스, 보조 환율은 " +
+        FooterNote(
+            "개인정보를 수집하지 않습니다. 통신망 국가와 다른 앱에서 선택한 텍스트는 " +
+                "환산에만 쓰고 기기 밖으로 보내지 않습니다. 환율과 새 버전을 확인할 때만 " +
+                "네이버, Frankfurter, GitHub에 요청을 보냅니다."
+        )
+        Spacer(Modifier.height(Space.s))
+        FooterNote(
+            "환율은 참고용입니다. 하나은행 매매기준율은 네이버 마켓인덱스, 보조 환율은 " +
                 "ECB 기준환율(Frankfurter API)에서 받아오며, 어느 곳과도 제휴 관계가 없습니다. " +
                 "상표권은 각 권리자에게 있습니다. 실제 환전·결제 금액은 은행과 카드사의 " +
-                "고시 환율과 수수료에 따라 달라집니다.",
-            style = MaterialTheme.typography.labelSmall,
-            color = muted.copy(alpha = 0.75f),
+                "고시 환율과 수수료에 따라 달라집니다."
         )
     }
 
@@ -252,15 +265,34 @@ private fun InfoFooter() {
 }
 
 @Composable
-private fun FooterLink(text: String, onClick: () -> Unit) {
-    Box(
+private fun FooterNote(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+    )
+}
+
+@Composable
+private fun FooterLink(text: String, @DrawableRes icon: Int? = null, onClick: () -> Unit) {
+    Row(
         modifier = Modifier
             .heightIn(min = 48.dp)
             .clip(Radius.badgeShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = Space.s),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (icon != null) {
+            // 글자 높이에 맞춘 단색. 브랜드 색을 쓰지 않고 링크 색 하나로 통일한다.
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(Space.xs))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
@@ -273,6 +305,8 @@ private fun FooterLink(text: String, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LicenseSheet(onDismiss: () -> Unit) {
+    val apache = OPEN_SOURCE.count { it.license == LICENSE_APACHE }
+    val mit = OPEN_SOURCE.count { it.license == LICENSE_MIT }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -281,6 +315,7 @@ private fun LicenseSheet(onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(horizontal = Space.gutter)
                 .padding(bottom = 20.dp),
@@ -293,14 +328,14 @@ private fun LicenseSheet(onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(Space.xs))
             Text(
-                text = "${OPEN_SOURCE.size}개 라이브러리 · 모두 Apache License 2.0",
+                text = "${OPEN_SOURCE.size}개 · $LICENSE_APACHE ${apache}개, $LICENSE_MIT ${mit}개",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(Space.m))
             OPEN_SOURCE.forEachIndexed { index, entry ->
                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(vertical = Space.s)) {
                     Text(
                         text = entry.name,
                         style = MaterialTheme.typography.bodyMedium,
@@ -314,6 +349,48 @@ private fun LicenseSheet(onDismiss: () -> Unit) {
                     )
                 }
             }
+            Spacer(Modifier.height(Space.l))
+            LicenseText(LICENSE_APACHE, R.raw.license_apache_2_0)
+            Spacer(Modifier.height(Space.s))
+            LicenseText("$LICENSE_MIT (Octicons)", R.raw.license_octicons_mit)
+        }
+    }
+}
+
+/** 라이선스 전문. 길어서 접어 두고, 펼칠 때만 res/raw에서 읽는다. */
+@Composable
+private fun LicenseText(title: String, @RawRes res: Int) {
+    val context = LocalContext.current
+    var open by remember { mutableStateOf(false) }
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { open = !open },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "$title 전문",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Chevron(MaterialTheme.colorScheme.onSurfaceVariant, open)
+        }
+        if (open) {
+            // 원문은 80자 폭으로 줄이 꺾여 있어 휴대폰 폭에서는 들쭉날쭉 끊긴다.
+            // 빈 줄로 나뉜 문단은 그대로 두고, 문단 안의 줄바꿈과 들여쓰기만 풀어 다시 흐르게 한다.
+            val text = remember(res) {
+                context.resources.openRawResource(res).bufferedReader().use { it.readText() }
+                    .trim()
+                    .split(Regex("\\n\\s*\\n"))
+                    .joinToString("\n\n") { it.trim().replace(Regex("\\s+"), " ") }
+            }
+            Spacer(Modifier.height(Space.m))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
