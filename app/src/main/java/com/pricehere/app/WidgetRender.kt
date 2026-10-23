@@ -147,7 +147,8 @@ private fun buildKeypad(context: Context, layout: Int): RemoteViews {
             WidgetHub.broadcast(context, provider, WidgetHub.ACTION_KEY, key),
         )
     }
-    views.setOnClickPendingIntent(R.id.kopen, WidgetHub.openApp(context))
+    // 열기 키 대신 표시 영역 전체(식·결과·환율 줄과 그 여백)를 누르면 앱이 열린다.
+    views.setOnClickPendingIntent(R.id.w_display, WidgetHub.openApp(context))
     return views
 }
 
