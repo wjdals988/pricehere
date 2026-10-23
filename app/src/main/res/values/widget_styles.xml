@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  계산기 위젯 키 3단계. 계산기 관례대로 역할이 다르면 바탕부터 달라야 한다.
+  숫자: 중립 바탕 + 본문색, 가장 크게(손가락이 가장 자주 가는 곳)
+  기능(⌫ C 열기): 한 단 짙은 중립 바탕 + 흐린 글자
+  연산자: 브랜드색 옅은 바탕 + 브랜드색 글자. 유채색은 이 한 줄에만 쓴다.
+  (awesome-design-md: Linear "single chromatic accent", Wise "semantic color for state only")
+-->
+<resources>
+    <style name="WKey">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginEnd">4dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+    </style>
+    <style name="WKey.Digit">
+        <item name="android:background">@drawable/w_key</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/w_text</item>
+    </style>
+    <style name="WKey.Fn">
+        <item name="android:background">@drawable/w_key_fn</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/w_muted</item>
+    </style>
+    <style name="WKey.Op">
+        <item name="android:background">@drawable/w_key_op</item>
+        <item name="android:layout_marginEnd">0dp</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/w_accent</item>
+    </style>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯 키. RemoteViews에는 물결(ripple) 피드백이 없어서 눌린 상태 색으로 대신한다. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/w_key_op_pressed" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/w_key_op" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</selector>

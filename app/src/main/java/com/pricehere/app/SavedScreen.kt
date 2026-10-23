@@ -25,6 +25,9 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,10 +47,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.Instant
+import kotlinx.coroutines.launch
 
 @Composable
-fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
+fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHostState) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var askClear by remember { mutableStateOf(false) }
     var picking by remember { mutableStateOf(false) }
     val picked = remember { mutableStateListOf<Long>() }
@@ -112,7 +118,19 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState) {
                         "${item.memo} 공유",
                     )
                 },
-                onDelete = { viewModel.deleteSaved(item.id) },
+                // 걸으면서 한 손으로 누르다 잘못 지우기 쉽다. 확인 창 대신 되돌리기를 준다.
+                onDelete = {
+                    val removed = viewModel.deleteSaved(item.id) ?: return@SavedRow
+                    scope.launch {
+                        snackbar.currentSnackbarData?.dismiss()
+                        val result = snackbar.showSnackbar(
+                            message = "‘${removed.memo}’ 삭제했습니다",
+                            actionLabel = "되돌리기",
+                            duration = SnackbarDuration.Short,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) viewModel.restoreSaved(removed)
+                    }
+                },
             )
             Spacer(Modifier.height(Space.m))
         }

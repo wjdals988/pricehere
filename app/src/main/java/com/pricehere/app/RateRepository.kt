@@ -47,7 +47,12 @@ data class TaxRefund(
     val benefitLabel: String
         get() = when (mode) {
             RefundMode.IMMEDIATE -> "매장에서 바로 차감"
-            RefundMode.REFUND -> "실수령 추정 (대행 수수료 ${(100 - netFactor * 100).toInt()}% 차감)"
+            // 일본 개편 후처럼 공항에서 직접 돌려받으면 대행 수수료가 없다. "수수료 0% 차감"은 어색하다.
+            RefundMode.REFUND -> if (netFactor >= 1.0) {
+                "출국 공항에서 환급 예상"
+            } else {
+                "실수령 추정 (대행 수수료 ${(100 - netFactor * 100).toInt()}% 차감)"
+            }
         }
 
     companion object {
@@ -105,11 +110,15 @@ enum class Currency(
     val quickAmounts: List<Long>,
     val cardFeePercent: Double,
     val cashSpreadPercent: Double,
-    val taxRefund: TaxRefund?,
+    /**
+     * 날짜를 받아 그날의 환급 제도를 돌려준다. 일본처럼 제도가 바뀌는 날이 있어서
+     * 값으로 두면 enum이 처음 만들어질 때 한 번만 계산되어, 앱이 자정을 넘겨 살아 있으면 옛 제도가 남는다.
+     */
+    private val refundOn: (LocalDate) -> TaxRefund?,
     val tip: TipGuide,
 ) {
     USD(
-        "USD", "미국 달러", "🇺🇸", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.75, null,
+        "USD", "미국 달러", "🇺🇸", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.75, { null },
         TipGuide(
             "🇺🇸", listOf(15, 18, 20, 25),
             "미국은 서비스 팁이 사실상 필수입니다. 식당은 세전 금액의 15~20%가 일반적이고, " +
@@ -118,7 +127,7 @@ enum class Currency(
     ),
     EUR(
         "EUR", "유로", "🇪🇺", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97,
-        TaxRefund("🇪🇸", "스페인", 21.0, 0.0),
+        { TaxRefund("🇪🇸", "스페인", 21.0, 0.0) },
         TipGuide(
             "🇪🇸", listOf(5, 10, 15),
             "스페인은 팁이 의무가 아닙니다. 잔돈을 남기거나 5~10% 정도면 충분하고, " +
@@ -127,7 +136,7 @@ enum class Currency(
     ),
     JPY(
         "JPY", "일본 엔", "🇯🇵", 100, 0, listOf(500, 1_000, 5_000, 10_000, 50_000), 1.2, 1.75,
-        TaxRefund.japan(),
+        { TaxRefund.japan(it) },
         TipGuide(
             "🇯🇵", listOf(0, 5, 10),
             "일본은 팁 문화가 없습니다. 두고 나오면 오히려 돌려주려 하거나 당황하게 만들 수 있어서 " +
@@ -136,7 +145,7 @@ enum class Currency(
     ),
     CZK(
         "CZK", "체코 코루나", "🇨🇿", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 8.0,
-        TaxRefund("🇨🇿", "체코", 21.0, 2001.0),
+        { TaxRefund("🇨🇿", "체코", 21.0, 2001.0) },
         TipGuide(
             "🇨🇿", listOf(5, 10, 15),
             "체코는 5~10%가 일반적입니다. 카드로 낼 때 팁을 따로 못 올리는 곳이 많아 " +
@@ -145,6 +154,11 @@ enum class Currency(
     );
 
     val naverCode: String get() = "FX_${code}KRW"
+
+    /** 오늘(서울 기준)의 환급 제도. 읽을 때마다 날짜를 다시 본다. */
+    val taxRefund: TaxRefund? get() = refundOn(LocalDate.now(TaxRefund.SEOUL_ZONE))
+
+    fun taxRefundOn(date: LocalDate): TaxRefund? = refundOn(date)
 
     companion object {
         fun of(code: String?): Currency = entries.firstOrNull { it.code == code } ?: CZK

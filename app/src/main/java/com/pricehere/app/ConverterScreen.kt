@@ -648,13 +648,38 @@ private fun RateCard(
     SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = state.rateLabel ?: "환율을 불러오는 중입니다",
+                text = state.rateLabel ?: "환율 없음",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (change != null && change.direction != 0 && state.priceMode == PriceMode.BASE) {
                 Spacer(Modifier.weight(1f))
                 TrendBadge(change, state.selected.quoteUnit)
+            }
+        }
+
+        if (snapshot == null) {
+            // 처음 설치한 뒤 오프라인이면 캐시도 없다. 출처 줄이 없으니 다시 시도할 길을 여기서 연다.
+            Spacer(Modifier.height(Space.s))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (state.loading) {
+                        "환율을 받아오고 있습니다"
+                    } else {
+                        state.error ?: "환율을 받아오지 못했습니다. 네트워크를 확인해 주세요."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (state.loading) MaterialTheme.colorScheme.onSurfaceVariant else Freshness.stale,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(Space.s))
+                StatusRefreshButton(
+                    color = Freshness.stale,
+                    loading = state.loading,
+                    confirmed = false,
+                    description = "환율 다시 받기",
+                    onClick = onRefresh,
+                )
             }
         }
 

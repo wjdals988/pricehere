@@ -60,6 +60,12 @@ class SavedStore(context: Context) {
 
     fun remove(id: Long): List<SavedItem> = persist(load().filterNot { it.id == id })
 
+    /** 되돌리기. 지운 항목을 id·저장 시각 그대로 다시 넣는다. 이미 있으면 그대로 둔다. */
+    fun restore(item: SavedItem): List<SavedItem> {
+        val items = load()
+        return if (items.any { it.id == item.id }) items else persist(items + item)
+    }
+
     fun clear(): List<SavedItem> = persist(emptyList())
 
     private fun persist(items: List<SavedItem>): List<SavedItem> {
