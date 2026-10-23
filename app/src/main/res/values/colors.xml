@@ -10,4 +10,9 @@
     <color name="w_divider">#FFE2E9E7</color>
     <color name="w_up">#FFE12D39</color>
     <color name="w_down">#FF1B64DA</color>
+    <color name="w_key_fn">#FFD3DEDA</color>
+    <color name="w_key_op">#FFCDE8E1</color>
+    <color name="w_key_pressed">#FFC9D3D0</color>
+    <color name="w_key_op_pressed">#FFA9D6CA</color>
+    <color name="w_stale">#FFDC3545</color>
 </resources>

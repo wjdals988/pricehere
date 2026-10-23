@@ -19,6 +19,35 @@ class PriceTextTest {
     @Test fun 통화_없으면_기본값() = assertEquals(PriceText.Parsed(Currency.EUR, 4500.0, true), p("4500", Currency.EUR))
     @Test fun 숫자_없으면_null() = assertNull(p("가격 문의"))
     @Test fun 영은_null() = assertNull(p("¥0"))
+
+    // v2.5.3: 공백 뒤 숫자를 삼키지 않는다
+    @Test fun 개수가_붙어도_가격만() = assertEquals(1280.0, p("¥1,280 2個")!!.amount, 0.0)
+    @Test fun 개수가_앞에_있어도_기호_옆_숫자() = assertEquals(1000.0, p("2개 ¥1,000")!!.amount, 0.0)
+    @Test fun 세금포함_괄호는_앞_가격() = assertEquals(1280.0, p("¥1,280（税込¥1,408）")!!.amount, 0.0)
+    @Test fun 엔화_공백_천단위() = assertEquals(12800.0, p("12 800 円")!!.amount, 0.0)
+    @Test fun 유로_공백_천단위_쉼표_소수() = assertEquals(1234.56, p("1 234,56 €")!!.amount, 0.0)
+    @Test fun 코루나_대시_표기() = assertEquals(1290.0, p("Kč 1.290,-")!!.amount, 0.0)
+
+    // v2.5.3: 원화는 외화로 계산하지 않는다
+    @Test fun 원화_기호() = assertEquals(PriceText.Parsed(Currency.CZK, 12000.0, false, fromKrw = true), p("₩12,000", Currency.CZK))
+    @Test fun 원화_원_표기() = assertEquals(PriceText.Parsed(Currency.JPY, 12000.0, false, fromKrw = true), p("12,000원", Currency.JPY))
+    @Test fun 원화_점_천단위() = assertEquals(12000.0, p("12.000원")!!.amount, 0.0)
+    @Test fun 회원가_원은_통화가_아님() = assertEquals(PriceText.Parsed(Currency.USD, 30.0, true), p("회원가 30"))
+    @Test fun 외화_기호가_원화보다_먼저() = assertEquals(PriceText.Parsed(Currency.JPY, 1000.0, false), p("¥1,000 (약 9,000원)"))
+}
+
+class TaxRefundDateTest {
+    @Test fun 개편_전날은_즉시면세() =
+        assertEquals(RefundMode.IMMEDIATE, Currency.JPY.taxRefundOn(java.time.LocalDate.of(2026, 10, 31))!!.mode)
+
+    @Test fun 개편일부터_공항환급() {
+        val r = Currency.JPY.taxRefundOn(java.time.LocalDate.of(2026, 11, 1))!!
+        assertEquals(RefundMode.REFUND, r.mode)
+        assertEquals("출국 공항에서 환급 예상", r.benefitLabel)
+    }
+
+    @Test fun 대행사_환급은_수수료_표기() =
+        assertEquals("실수령 추정 (대행 수수료 25% 차감)", Currency.CZK.taxRefund!!.benefitLabel)
 }
 
 class LocalCurrencyTest {

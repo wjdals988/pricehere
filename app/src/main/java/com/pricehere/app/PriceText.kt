@@ -40,7 +40,16 @@ object LocalCurrency {
 
 /** 다른 앱에서 선택한 "¥12,800" 같은 글자에서 통화와 금액을 뽑는다. */
 object PriceText {
-    data class Parsed(val currency: Currency, val amount: Double, val currencyGuessed: Boolean)
+    /**
+     * fromKrw 가 true면 amount 는 원화이고, currency 는 그 원화를 바꿔 볼 외화(마지막에 고른 통화)다.
+     * currencyGuessed 는 기호가 없어 통화를 추측했다는 뜻이다. 화면에서 확인을 요청한다.
+     */
+    data class Parsed(
+        val currency: Currency,
+        val amount: Double,
+        val currencyGuessed: Boolean,
+        val fromKrw: Boolean = false,
+    )
 
     private val MARKERS: List<Pair<Regex, Currency>> = listOf(
         Regex("""US\$|USD|\$|달러|dollars?""", RegexOption.IGNORE_CASE) to Currency.USD,
@@ -50,28 +59,54 @@ object PriceText {
         Regex("""Kč|CZK|코루나|korun""", RegexOption.IGNORE_CASE) to Currency.CZK,
     )
 
-    private val NUMBER = Regex("""\d[\d.,\s  ']*""")
+    /** 원화. "회원가"처럼 단어 속 "원"은 통화가 아니므로 숫자 바로 뒤의 "원"만 본다. 외화 기호가 있으면 그쪽이 먼저다. */
+    private val KRW = Regex("""₩|￦|KRW|(?<=\d)\s?원""", RegexOption.IGNORE_CASE)
+
+    /**
+     * 공백은 뒤에 정확히 세 자리가 올 때만 천 단위 구분자로 본다(1 290 Kč, 12 800 円).
+     * 아무 공백이나 숫자로 삼키면 "¥1,280 2個"가 "1,280 2"로 붙어 1.2802가 된다.
+     */
+    private val NUMBER = Regex("""\d{1,3}(?:[ \u00A0\u202F\u2009']\d{3})+(?:[.,]\d+)?|\d[\d.,']*""")
 
     fun parse(text: String, fallback: Currency): Parsed? {
         val src = text.take(200)
-        val hit = MARKERS.firstOrNull { it.first.containsMatchIn(src) }
-        val currency = hit?.second ?: fallback
+        val hit = MARKERS.firstNotNullOfOrNull { (re, c) -> re.find(src)?.let { it to c } }
+        val krw = if (hit == null) KRW.find(src) else null
+        val marker = hit?.first ?: krw
 
-        val raw = NUMBER.find(src)?.value ?: return null
-        var amount = toNumber(raw.trim().trimEnd('.', ',', '\''), currency) ?: return null
+        val numbers = NUMBER.findAll(src).toList()
+        if (numbers.isEmpty()) return null
+        // 기호가 있으면 그 기호에 가장 가까운 숫자를 고른다. "2개 ¥1,000"에서 2가 아니라 1,000.
+        val number = marker?.let { m -> numbers.minBy { gap(it.range, m.range) } } ?: numbers.first()
+
+        val currency = hit?.second ?: fallback
+        // 원화는 소수점을 쓰지 않으니 점 하나도 천 단위다(12.000원).
+        val dotIsGrouping = krw != null || currency == Currency.EUR || currency == Currency.CZK
+        var amount = toNumber(number.value.trim().trimEnd('.', ',', '\''), dotIsGrouping) ?: return null
         // 일본 가격표의 "1.2万円" 같은 표기.
-        val after = src.substring(src.indexOf(raw) + raw.length).trimStart()
-        if (after.startsWith("万")) amount *= 10_000
+        if (src.substring(number.range.last + 1).trimStart().startsWith("万")) amount *= 10_000
         if (amount <= 0.0) return null
-        return Parsed(currency, amount, currencyGuessed = hit == null)
+        return Parsed(
+            currency = currency,
+            amount = amount,
+            currencyGuessed = marker == null,
+            fromKrw = krw != null,
+        )
+    }
+
+    /** 두 구간 사이의 글자 수. 겹치면 0. */
+    private fun gap(a: IntRange, b: IntRange): Int = when {
+        a.last < b.first -> b.first - a.last
+        b.last < a.first -> a.first - b.last
+        else -> 0
     }
 
     /**
      * 나라마다 천 단위·소수 구분자가 반대다(1,234.56 / 1.234,56 / 1 234,56).
      * 둘 다 있으면 마지막에 나온 것이 소수점이다. 하나만 있으면 뒤 자릿수로 판단한다.
      */
-    private fun toNumber(raw: String, currency: Currency): Double? {
-        val s = raw.replace(Regex("""[\s  ']"""), "")
+    private fun toNumber(raw: String, dotIsGrouping: Boolean): Double? {
+        val s = raw.replace(Regex("""[\s\u00A0\u202F\u2009']"""), "")
         val lastDot = s.lastIndexOf('.')
         val lastComma = s.lastIndexOf(',')
         val normalized = when {
@@ -83,8 +118,7 @@ object PriceText {
             lastComma >= 0 -> if (isGrouping(s, ',')) s.replace(",", "") else s.replace(',', '.')
             lastDot >= 0 -> {
                 // "1.299"는 미국식이면 1.299달러, 유럽식이면 1,299유로다. 통화로 가른다.
-                val europeanStyle = currency == Currency.EUR || currency == Currency.CZK
-                if (isGrouping(s, '.') && (europeanStyle || s.count { it == '.' } > 1)) s.replace(".", "") else s
+                if (isGrouping(s, '.') && (dotIsGrouping || s.count { it == '.' } > 1)) s.replace(".", "") else s
             }
             else -> s
         }

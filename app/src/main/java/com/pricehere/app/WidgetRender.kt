@@ -2,6 +2,8 @@ package com.pricehere.app
 
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.os.Build
+import android.util.SizeF
 import android.widget.RemoteViews
 import java.time.Instant
 
@@ -27,10 +29,9 @@ fun renderRateWidget(context: Context): RemoteViews {
 
     views.setTextViewText(
         R.id.w_time,
-        snapshot?.let {
-            "${it.source.short} · ${CLOCK.format(Instant.ofEpochMilli(it.quotedAtMillis))}"
-        } ?: "환율을 불러오는 중",
+        snapshot?.let { "${it.source.short} · ${stamp(it)}" } ?: "환율을 불러오는 중",
     )
+    views.setTextColor(R.id.w_time, context.getColor(staleColor(snapshot, R.color.w_muted)))
 
     Currency.entries.forEachIndexed { i, currency ->
         val unit = currency.quoteUnit
@@ -114,8 +115,26 @@ private val DIGIT_KEYS = mapOf(
     R.id.kadd to "+", R.id.ksub to "-", R.id.kmul to "*", R.id.kdiv to "/",
 )
 
+/**
+ * 위젯 높이가 이 값 이상이면 표시 영역이 큰 레이아웃을 쓴다. 3칸(약 301dp)에서 키가 48dp인데,
+ * 큰 표시 영역(약 +33dp)을 넣으면 키가 약 40dp로 줄어 손가락보다 작아진다. 4칸(약 417dp)부터 여유가 생긴다.
+ */
+private const val KEYPAD_TALL_MIN_HEIGHT = 380f
+
 fun renderKeypadWidget(context: Context): RemoteViews {
-    val views = RemoteViews(context.packageName, R.layout.widget_keypad)
+    val compact = buildKeypad(context, R.layout.widget_keypad)
+    // 크기별 레이아웃은 Android 12(API 31)부터. 그 아래는 늘 한 줄 표시.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return compact
+    return RemoteViews(
+        mapOf(
+            SizeF(250f, 180f) to compact,
+            SizeF(250f, KEYPAD_TALL_MIN_HEIGHT) to buildKeypad(context, R.layout.widget_keypad_tall),
+        )
+    )
+}
+
+private fun buildKeypad(context: Context, layout: Int): RemoteViews {
+    val views = RemoteViews(context.packageName, layout)
     val provider = KeypadWidgetProvider::class.java
     val state = readState(context)
 
@@ -133,6 +152,23 @@ fun renderKeypadWidget(context: Context): RemoteViews {
 }
 
 // ---------------------------------------------------------------- 공통
+
+/**
+ * 위젯은 30분마다(Doze면 더 늦게) 또는 눌렀을 때만 다시 그려진다. "2분 전" 같은 상대 시각은
+ * 다음 갱신까지 그대로 남아 거짓이 되므로, 시간이 지나도 틀리지 않는 날짜 붙은 고시 시각을 쓴다.
+ */
+private fun stamp(snapshot: Snapshot): String = DAY_STAMP.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))
+
+/**
+ * 색도 그린 시점 기준이라, 시간이 지나도 틀려지지 않는 경우에만 경고색을 쓴다.
+ * "오프라인 캐시"와 "고시 후 24시간 넘음"은 한번 참이면 계속 참이다. 앱의 dotColor와 같은 기준이다.
+ */
+private fun staleColor(snapshot: Snapshot?, normal: Int): Int {
+    snapshot ?: return normal
+    val minutes = (System.currentTimeMillis() - snapshot.quotedAtMillis) / 60_000L
+    val stale = dotColor(snapshot.source, minutes) == Freshness.stale
+    return if (stale) R.color.w_stale else normal
+}
 
 /**
  * 위젯은 방향을 바꾸지 않는다. 현지 통화를 넣으면 원화가 나오는 한 방향만 지원한다.
@@ -163,7 +199,8 @@ private fun bindHeader(
 ) {
     CURRENCY_IDS.forEach { (currency, id) ->
         val on = currency == state.currency
-        views.setTextViewText(id, currency.code)
+        // 앱의 통화 선택과 같은 "국기 + 코드". 코드만 있으면 네 칸이 같은 모양이라 한눈에 안 갈린다.
+        views.setTextViewText(id, "${currency.flag} ${currency.code}")
         views.setInt(
             id,
             "setBackgroundResource",
@@ -198,11 +235,15 @@ private fun bindHero(context: Context, views: RemoteViews, state: WidgetSnapshot
         R.id.w_result,
         state.result?.let { "${format(it, 0)}원" } ?: "—",
     )
+    val snapshot = state.snapshot
     views.setTextViewText(
         R.id.w_rate,
-        state.rate?.let { "$unit ${currency.code} = ${formatFixed(it * unit, 2)}원" }
-            ?: "환율을 불러오는 중",
+        state.rate?.let { rate ->
+            "$unit ${currency.code} = ${formatFixed(rate * unit, 2)}원" +
+                (snapshot?.let { " · ${stamp(it)}" } ?: "")
+        } ?: "환율을 불러오는 중",
     )
+    views.setTextColor(R.id.w_rate, context.getColor(staleColor(snapshot, R.color.w_muted)))
     views.setOnClickPendingIntent(R.id.w_result, WidgetHub.openApp(context))
     views.setOnClickPendingIntent(R.id.w_amount, WidgetHub.openApp(context))
 }

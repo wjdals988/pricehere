@@ -70,6 +70,7 @@ class PriceTextActivity : ComponentActivity() {
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                                 .putExtra(MainActivity.EXTRA_CURRENCY, currency.code)
                                 .putExtra(MainActivity.EXTRA_AMOUNT, amount)
+                                .putExtra(MainActivity.EXTRA_FROM_KRW, parsed?.fromKrw == true)
                         )
                         finish()
                     },
@@ -136,7 +137,21 @@ private fun PriceSheet(
                     color = muted,
                 )
             } else {
-                // 기호로 통화를 못 정했거나 틀렸을 수 있어 항상 바꿀 수 있게 둔다.
+                // 원화를 골랐으면 외화로, 기호가 없었으면 추측한 통화임을 먼저 알린다.
+                // 통화 칩은 어느 경우든 바꿀 수 있게 둔다.
+                val hint = when {
+                    parsed.fromKrw -> "원화 금액입니다. 바꿔 볼 통화를 고르세요."
+                    parsed.currencyGuessed -> "통화 표시가 없어 ${currency.code}로 계산했습니다. 맞는 통화를 골라 주세요."
+                    else -> null
+                }
+                if (hint != null) {
+                    Text(
+                        text = hint,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(Space.s))
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                     Currency.entries.forEach { c ->
                         Pill(text = "${c.flag} ${c.code}", selected = c == currency) { currency = c }
@@ -145,20 +160,35 @@ private fun PriceSheet(
                 Spacer(Modifier.height(Space.l))
 
                 val rate = snapshot?.rateOf(currency)
-                val won = rate?.let { parsed.amount * it }
-                Text(
-                    text = won?.let { format(it, 0) + "원" } ?: "환율 없음",
-                    style = Num.amount(34).copy(color = MaterialTheme.colorScheme.onSurface),
-                )
-                Spacer(Modifier.height(Space.xs))
-                Text(
-                    text = listOfNotNull(
-                        "${format(parsed.amount, currency.decimals)} ${currency.code}",
-                        won?.let(::approxWon),
-                    ).joinToString("  ·  "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                if (parsed.fromKrw) {
+                    val foreign = rate?.takeIf { it > 0 }?.let { parsed.amount / it }
+                    Text(
+                        text = foreign?.let { "${format(it, currency.decimals)} ${currency.code}" } ?: "환율 없음",
+                        style = Num.amount(34).copy(color = MaterialTheme.colorScheme.onSurface),
+                    )
+                    Spacer(Modifier.height(Space.xs))
+                    Text(
+                        text = listOfNotNull("${format(parsed.amount, 0)}원", approxWon(parsed.amount))
+                            .joinToString("  ·  "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                } else {
+                    val won = rate?.let { parsed.amount * it }
+                    Text(
+                        text = won?.let { format(it, 0) + "원" } ?: "환율 없음",
+                        style = Num.amount(34).copy(color = MaterialTheme.colorScheme.onSurface),
+                    )
+                    Spacer(Modifier.height(Space.xs))
+                    Text(
+                        text = listOfNotNull(
+                            "${format(parsed.amount, currency.decimals)} ${currency.code}",
+                            won?.let(::approxWon),
+                        ).joinToString("  ·  "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
                 if (snapshot != null && rate != null) {
                     Spacer(Modifier.height(Space.xs))
                     Text(

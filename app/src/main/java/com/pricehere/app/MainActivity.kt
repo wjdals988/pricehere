@@ -20,12 +20,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +63,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // 첫 실행에 오프라인이었다면 init의 새로고침은 이미 실패했다. 돌아올 때마다 한 번 더 시도한다.
+        // 네트워크 콜백은 ACCESS_NETWORK_STATE 권한이 필요해서 쓰지 않는다.
+        if (viewModel.state.value.snapshot == null) viewModel.refresh()
         // 여행지에 도착해 처음 열면 그 나라 통화로. 위치 권한 없이 통신망 국가만 본다.
         val country = getSystemService(TelephonyManager::class.java)?.networkCountryIso.orEmpty()
         viewModel.syncLocalCurrency(country)?.let { currency ->
@@ -71,19 +77,22 @@ class MainActivity : ComponentActivity() {
     private fun handleExternal(intent: Intent?) {
         val code = intent?.getStringExtra(EXTRA_CURRENCY) ?: return
         val amount = intent.getDoubleExtra(EXTRA_AMOUNT, 0.0).takeIf { it > 0 } ?: return
-        viewModel.openExternal(Currency.of(code), amount)
+        viewModel.openExternal(Currency.of(code), amount, intent.getBooleanExtra(EXTRA_FROM_KRW, false))
         intent.removeExtra(EXTRA_CURRENCY)
     }
 
     companion object {
         const val EXTRA_CURRENCY = "com.pricehere.app.CURRENCY"
         const val EXTRA_AMOUNT = "com.pricehere.app.AMOUNT"
+        /** true면 EXTRA_AMOUNT 는 원화다. 원 → 외화 방향으로 연다. */
+        const val EXTRA_FROM_KRW = "com.pricehere.app.FROM_KRW"
     }
 }
 
 @Composable
 private fun AppShell(viewModel: RatesViewModel, state: UiState) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    val snackbar = remember { SnackbarHostState() }
     // 홈에서 버전 칩을 누르면 정보 탭의 버전 카드를 펼친 상태로 열어준다.
     var openVersion by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.externalTick) {
@@ -92,6 +101,7 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = { BottomTabs(tab, state.saved.size, state.hasUpdate) { tab = it } },
     ) { inset ->
         Box(Modifier.fillMaxSize().padding(inset)) {
@@ -105,7 +115,7 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
                     },
                 )
 
-                Tab.SAVED -> SavedScreen(viewModel, state)
+                Tab.SAVED -> SavedScreen(viewModel, state, snackbar)
                 Tab.INFO -> InfoScreen(
                     viewModel = viewModel,
                     state = state,

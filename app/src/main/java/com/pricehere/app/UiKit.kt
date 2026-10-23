@@ -478,28 +478,46 @@ fun StatusLine(
             freshness == Freshness.aging -> "조금 지남"
             else -> "최신"
         }
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(freshness.copy(alpha = 0.12f))
-                .clickable(enabled = !loading, onClick = onRefresh)
-                .semantics { contentDescription = "환율 새로고침, 현재 $state" },
-            contentAlignment = Alignment.Center,
-        ) {
-            when {
-                loading -> CircularProgressIndicator(
-                    modifier = Modifier.size(15.dp),
-                    strokeWidth = 2.dp,
-                    color = freshness,
-                )
-                else -> Icon(
-                    imageVector = if (confirmed) Icons.Filled.Check else Icons.Filled.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = freshness,
-                )
-            }
+        StatusRefreshButton(
+            color = freshness,
+            loading = loading,
+            confirmed = confirmed,
+            description = "환율 새로고침, 현재 $state",
+            onClick = onRefresh,
+        )
+    }
+}
+
+/** 상태 색을 입힌 원형 새로고침 버튼. 환율이 아직 하나도 없을 때도 같은 모양을 쓴다. */
+@Composable
+fun StatusRefreshButton(
+    color: Color,
+    loading: Boolean,
+    confirmed: Boolean,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(color.copy(alpha = 0.12f))
+            .clickable(enabled = !loading, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            loading -> CircularProgressIndicator(
+                modifier = Modifier.size(15.dp),
+                strokeWidth = 2.dp,
+                color = color,
+            )
+            else -> Icon(
+                imageVector = if (confirmed) Icons.Filled.Check else Icons.Filled.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = color,
+            )
         }
     }
 }

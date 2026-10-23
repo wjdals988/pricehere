@@ -301,14 +301,18 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         return target
     }
 
-    /** 다른 앱의 텍스트 선택 메뉴에서 "앱에서 열기"로 넘어온 값. */
-    fun openExternal(currency: Currency, amount: Double) {
+    /**
+     * 다른 앱의 텍스트 선택 메뉴에서 "앱에서 열기"로 넘어온 값.
+     * fromKrw 면 amount 는 원화이고, 원 → 외화 방향으로 연다.
+     */
+    fun openExternal(currency: Currency, amount: Double, fromKrw: Boolean = false) {
         select(currency)
-        val input = BigDecimal(amount).setScale(currency.decimals, RoundingMode.HALF_UP)
+        val decimals = if (fromKrw) 0 else currency.decimals
+        val input = BigDecimal(amount).setScale(decimals, RoundingMode.HALF_UP)
             .stripTrailingZeros().toPlainString()
         _state.update {
             it.copy(
-                foreignToKrw = true,
+                foreignToKrw = !fromKrw,
                 input = Expression.sanitize(input, MAX_INPUT),
                 externalTick = it.externalTick + 1,
             )
@@ -356,8 +360,15 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         return true
     }
 
-    fun deleteSaved(id: Long) {
+    /** 지운 항목을 돌려준다. 화면이 "되돌리기"를 띄우는 동안 들고 있다가 restoreSaved 로 되살린다. */
+    fun deleteSaved(id: Long): SavedItem? {
+        val removed = _state.value.saved.firstOrNull { it.id == id }
         _state.update { it.copy(saved = store.remove(id)) }
+        return removed
+    }
+
+    fun restoreSaved(item: SavedItem) {
+        _state.update { it.copy(saved = store.restore(item)) }
     }
 
     fun clearSaved() {
