@@ -16,16 +16,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,22 +90,8 @@ fun InfoScreen(
 
         SourceCard()
 
-        Spacer(Modifier.height(Space.m))
-
-        MakerCard()
-
-        Spacer(Modifier.height(Space.m))
-
-        LicenseCard()
-
-        Spacer(Modifier.height(Space.l))
-        Text(
-            text = "이 앱은 환율 정보를 참고용으로만 제공합니다. " +
-                "실제 환전·결제 금액은 은행과 카드사의 고시 환율 및 수수료에 따라 달라집니다.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
+        Spacer(Modifier.height(Space.xl))
+        InfoFooter()
 
         Spacer(Modifier.height(Space.xl))
     }
@@ -225,133 +216,105 @@ private fun ThemeCard(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     }
 }
 
+/**
+ * 만든 사람·라이선스·고지는 기능이 아니므로 카드로 세우지 않고 맨 아래에 작고 흐리게 모은다.
+ * 링크 글자는 작아도 누르는 영역은 48dp를 지킨다.
+ */
 @Composable
-private fun MakerCard() {
+private fun InfoFooter() {
     val context = LocalContext.current
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
-        Text(
-            text = "만든 사람",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(Space.xs))
-        Text(
-            text = "$COPYRIGHT_HOLDER 이 직접 설계하고 만들었습니다. " +
-                "다른 프로젝트도 대시보드에 정리해 두었습니다.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    var showLicenses by remember { mutableStateOf(false) }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
-        Spacer(Modifier.height(Space.m))
-        LinkRow("프로젝트 대시보드", DASHBOARD_URL) { open(context, DASHBOARD_URL) }
-        LinkRow("GitHub", GITHUB_URL) { open(context, GITHUB_URL) }
-
-        Spacer(Modifier.height(Space.m))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(Space.m))
+    Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
         Text(
-            text = "© $COPYRIGHT_YEAR $COPYRIGHT_HOLDER · 여긴얼마? (PriceHere) · $APP_LICENSE",
+            text = "여긴얼마? (PriceHere) · © $COPYRIGHT_YEAR $COPYRIGHT_HOLDER · $APP_LICENSE",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+            color = muted,
+        )
+        // 링크의 누르는 영역이 왼쪽으로 8dp 나가 있으므로, 글자를 윗줄과 맞추려고 그만큼 당긴다.
+        Row(Modifier.offset(x = (-8).dp)) {
+            FooterLink("대시보드 ↗") { open(context, DASHBOARD_URL) }
+            FooterLink("GitHub ↗") { open(context, GITHUB_URL) }
+            FooterLink("오픈소스 라이선스 ›") { showLicenses = true }
+        }
+        Text(
+            text = "환율은 참고용입니다. 하나은행 매매기준율은 네이버 마켓인덱스, 보조 환율은 " +
+                "ECB 기준환율(Frankfurter API)에서 받아오며, 어느 곳과도 제휴 관계가 없습니다. " +
+                "상표권은 각 권리자에게 있습니다. 실제 환전·결제 금액은 은행과 카드사의 " +
+                "고시 환율과 수수료에 따라 달라집니다.",
+            style = MaterialTheme.typography.labelSmall,
+            color = muted.copy(alpha = 0.75f),
         )
     }
+
+    if (showLicenses) LicenseSheet(onDismiss = { showLicenses = false })
 }
 
 @Composable
-private fun LinkRow(title: String, url: String, onClick: () -> Unit) {
-    Row(
+private fun FooterLink(text: String, onClick: () -> Unit) {
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(Radius.pillShape)
+            .heightIn(min = 48.dp)
+            .clip(Radius.badgeShape)
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = url.removePrefix("https://"),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         Text(
-            text = "↗",
-            style = MaterialTheme.typography.titleMedium,
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LicenseCard() {
-    var open by remember { mutableStateOf(false) }
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable { open = !open },
-            verticalAlignment = Alignment.CenterVertically,
+private fun LicenseSheet(onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = Space.gutter)
+                .padding(bottom = 20.dp),
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "오픈소스 라이선스",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = "${OPEN_SOURCE.size}개 라이브러리 · 모두 Apache License 2.0",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Chevron(MaterialTheme.colorScheme.onSurfaceVariant, open)
-        }
-
-        if (!open) return@SectionCard
-
-        Spacer(Modifier.height(Space.m))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(Space.m))
-
-        OPEN_SOURCE.forEach { entry ->
-            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text(
-                    text = entry.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = "${entry.owner} · ${entry.license}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Text(
+                text = "오픈소스 라이선스",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(Space.xs))
+            Text(
+                text = "${OPEN_SOURCE.size}개 라이브러리 · 모두 Apache License 2.0",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(Space.m))
+            OPEN_SOURCE.forEachIndexed { index, entry ->
+                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                    Text(
+                        text = entry.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "${entry.owner} · ${entry.license}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
-
-        Spacer(Modifier.height(Space.m))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(Space.m))
-        Text(
-            text = "환율 데이터 고지",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(Space.xs))
-        Text(
-            text = "매매기준율은 하나은행 고시 환율이며 네이버 마켓인덱스를 통해 조회합니다. " +
-                "보조 환율은 유럽중앙은행(ECB) 기준환율을 Frankfurter API로 받아옵니다. " +
-                "두 출처 모두 이 앱과 제휴 관계가 없으며, 상표권은 각 권리자에게 있습니다.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-        )
     }
 }
 
@@ -464,16 +427,7 @@ private fun SourceCard() {
         SourceRow(1, "하나은행 매매기준율", "네이버 마켓인덱스 경유 · 고시회차마다 갱신")
         SourceRow(2, "ECB 기준환율", "Frankfurter API · 평일 16:00 CET 고시")
         SourceRow(3, "오프라인 캐시", "마지막으로 성공한 환율을 기기에 보관")
-
-        Spacer(Modifier.height(Space.m))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(Space.m))
-        Text(
-            text = "매매기준율은 은행이 고시하는 기준 환율입니다. " +
-                "카드 결제나 현찰 환전에는 여기에 수수료가 더 붙습니다.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-        )
+        // 수수료 설명은 홈 환율 카드가 결제 수단마다 이미 해 준다.
     }
 }
 
