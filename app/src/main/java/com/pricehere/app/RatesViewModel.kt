@@ -2,6 +2,7 @@ package com.pricehere.app
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -120,7 +121,12 @@ data class UiState(
     val toDecimals: Int get() = if (foreignToKrw) 0 else selected.decimals
 }
 
-class RatesViewModel(app: Application) : AndroidViewModel(app) {
+/**
+ * handle: 시스템이 백그라운드에서 앱을 정리했다가 되살릴 때 입력값을 돌려받는 곳.
+ * 카메라·지도를 오가는 사이 프로세스가 죽어도 쓰던 금액과 식이 남는다.
+ * 사용자가 앱을 직접 닫으면 함께 비워지는 게 맞으므로 SharedPreferences에는 두지 않는다.
+ */
+class RatesViewModel(app: Application, private val handle: SavedStateHandle) : AndroidViewModel(app) {
 
     private val repo = RateRepository(app)
     private val store = SavedStore(app)
@@ -133,6 +139,8 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
             saved = store.load(),
             themeMode = settings.themeMode(),
             showHints = settings.bumpLaunchCount() <= 3,
+            input = handle[KEY_INPUT] ?: "",
+            foreignToKrw = handle[KEY_DIRECTION] ?: true,
         )
     )
     val state = _state.asStateFlow()
@@ -140,6 +148,12 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
     private var lastFetchAtMillis = 0L
 
     init {
+        viewModelScope.launch {
+            state.collect {
+                handle[KEY_INPUT] = it.input
+                handle[KEY_DIRECTION] = it.foreignToKrw
+            }
+        }
         refresh()
         checkForUpdate()
     }
@@ -340,5 +354,8 @@ class RatesViewModel(app: Application) : AndroidViewModel(app) {
 
         /** 비공식 API를 보호하기 위한 수동 새로고침 최소 간격. */
         const val MIN_REFRESH_INTERVAL_MS = 2_000L
+
+        const val KEY_INPUT = "input"
+        const val KEY_DIRECTION = "foreignToKrw"
     }
 }
