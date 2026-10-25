@@ -86,6 +86,14 @@ data class UiState(
 
     val feePercent: Double get() = priceMode.feePercent(selected)
 
+    /** 외화 → 원 방향에서 결제 수단별 원화. 결제 수단 칩 아래에 나란히 보여 비교하게 한다. */
+    fun krwFor(mode: PriceMode): Double? {
+        if (!foreignToKrw) return null
+        val base = baseRate ?: return null
+        val amount = amountOrNull?.takeIf { it > 0 } ?: return null
+        return amount * mode.apply(base, selected)
+    }
+
     /** 입력이 식이면 계산한 값. 0으로 나누면 null. */
     val amountOrNull: Double? get() = Expression.evaluate(input)
     val amount: Double get() = amountOrNull ?: 0.0
@@ -204,7 +212,10 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
             return
         }
 
-        val before = current.snapshot?.rateOf(current.selected)
+        // 새로고침 도중 통화가 바뀌면(위젯에서 앱을 여는 경우 등) 다른 통화끼리 비교하게 된다.
+        // 시작할 때의 통화로 전후를 재고, 그사이 통화가 바뀌었으면 결과 문구를 띄우지 않는다.
+        val currency = current.selected
+        val before = current.snapshot?.rateOf(currency)
         _state.update { it.copy(loading = true, error = null, outcome = null) }
         viewModelScope.launch {
             try {
@@ -220,8 +231,8 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
                     )
                 }
                 // 캐시로 떨어졌을 때 "변동 없음 · 최신"이라고 하면 거짓말이 된다. 오프라인은 버튼 색이 알린다.
-                if (snapshot.source != RateSource.CACHE) {
-                    showOutcome(RefreshOutcome(before, snapshot.rateOf(_state.value.selected)))
+                if (snapshot.source != RateSource.CACHE && _state.value.selected == currency) {
+                    showOutcome(RefreshOutcome(before, snapshot.rateOf(currency)))
                 }
             } catch (e: Exception) {
                 _state.update {
