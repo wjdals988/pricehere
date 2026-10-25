@@ -84,6 +84,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -768,6 +769,28 @@ private fun RateCard(
                     selected = mode == state.priceMode,
                     modifier = Modifier.weight(1f),
                 ) { onPriceMode(mode) }
+            }
+        }
+        // 칩을 하나씩 눌러 보지 않아도 결제 수단별 금액을 한눈에 비교한다. 금액을 넣었을 때만.
+        if (state.krwFor(PriceMode.BASE) != null) {
+            Spacer(Modifier.height(Space.xs))
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                PriceMode.entries.forEach { mode ->
+                    val on = mode == state.priceMode
+                    Text(
+                        text = "${format(state.krwFor(mode) ?: 0.0, 0)}원",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (on) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
 

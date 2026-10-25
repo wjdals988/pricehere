@@ -27,6 +27,21 @@ data class SavedItem(
     fun krwAt(base: Double): Double = amount * mode.apply(base, currency)
 }
 
+/**
+ * 한국 입국 여행자 휴대품 기본 면세 한도(1인, 미화). 관세청 기준이며 2022년 9월 600달러에서 올랐다.
+ * 술(2L·400달러)·담배·향수는 이 한도와 따로 센다.
+ */
+const val DUTY_FREE_USD = 800.0
+
+/**
+ * 저장 항목의 물품 가격 합계를 달러로 바꾼다. 세관은 물품 가격을 보므로 카드·현찰 수수료는 빼고
+ * 매매기준율로 계산한다. 지금 환율이 없는 통화는 저장 당시 환율을 쓴다. 달러 환율이 없으면 null.
+ */
+fun dutyFreeUsd(items: List<SavedItem>, rates: Map<String, Double>): Double? {
+    val usd = rates[Currency.USD.code]?.takeIf { it > 0 } ?: return null
+    return items.sumOf { it.amount * (rates[it.currencyCode] ?: it.rateAtSave) } / usd
+}
+
 /** Room을 쓸 만한 규모가 아니라 SharedPreferences에 JSON 배열로 둔다. */
 class SavedStore(context: Context) {
 

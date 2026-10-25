@@ -329,6 +329,10 @@ private fun TotalCard(items: List<SavedItem>, state: UiState, now: Long, onRefre
             Spacer(Modifier.height(Space.s))
             DeltaText(diff)
         }
+        snapshot?.let { dutyFreeUsd(items, it.rates) }?.let { usd ->
+            Spacer(Modifier.height(Space.m))
+            DutyFreeGauge(usd)
+        }
         if (snapshot != null) {
             val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
             Spacer(Modifier.height(Space.s))
@@ -343,6 +347,53 @@ private fun TotalCard(items: List<SavedItem>, state: UiState, now: Long, onRefre
             )
         }
     }
+}
+
+/**
+ * 입국 면세 한도까지 얼마나 찼는지. 쇼핑 중에 "이제 신고 대상인가"를 바로 보게 한다.
+ * 1인 기준이고 술·담배·향수는 따로라서, 넘었다고 단정하지 않고 참고 문구를 붙인다.
+ */
+@Composable
+private fun DutyFreeGauge(usd: Double) {
+    val over = usd > DUTY_FREE_USD
+    val dark = isDark()
+    val tint = when {
+        over && dark -> Trend.risingDark
+        over -> Trend.rising
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Text(
+        text = if (over) {
+            "입국 면세 한도를 ${format(usd - DUTY_FREE_USD, 0)}달러 넘었습니다"
+        } else {
+            "입국 면세 한도 ${format(DUTY_FREE_USD, 0)}달러 중 ${format(usd, 0)}달러"
+        },
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = if (over) tint else MaterialTheme.colorScheme.onSurface,
+    )
+    Spacer(Modifier.height(Space.xs))
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(RoundedCornerShape(3.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth((usd / DUTY_FREE_USD).toFloat().coerceIn(0f, 1f))
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(tint),
+        )
+    }
+    Spacer(Modifier.height(Space.xs))
+    Text(
+        text = "1인 기준 참고값 · 술·담배·향수는 따로 셉니다",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
