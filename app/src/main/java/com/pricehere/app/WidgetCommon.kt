@@ -118,6 +118,28 @@ object WidgetHub {
         )
     }
 
+    /**
+     * 계산기 표시 영역용. 위젯의 통화와 입력을 그대로 들고 앱을 연다.
+     * PendingIntent는 extras를 구분하지 않아서, data를 따로 두지 않으면 환율 위젯의
+     * openApp과 같은 것으로 취급돼 그쪽에도 입력이 실려 버린다.
+     */
+    fun openAppWith(context: Context, currency: Currency, input: String): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            data = Uri.parse("pricehere://open/calculator")
+            if (input.isNotEmpty()) {
+                putExtra(MainActivity.EXTRA_CURRENCY, currency.code)
+                putExtra(MainActivity.EXTRA_INPUT, input)
+            }
+        }
+        return PendingIntent.getActivity(
+            context,
+            1,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
     fun render(context: Context, provider: Class<out AppWidgetProvider>): RemoteViews = when (provider) {
         RateWidgetProvider::class.java -> renderRateWidget(context)
         QuickWidgetProvider::class.java -> renderQuickWidget(context)

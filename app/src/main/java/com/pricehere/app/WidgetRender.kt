@@ -148,7 +148,8 @@ private fun buildKeypad(context: Context, layout: Int): RemoteViews {
         )
     }
     // 열기 키 대신 표시 영역 전체(식·결과·환율 줄과 그 여백)를 누르면 앱이 열린다.
-    views.setOnClickPendingIntent(R.id.w_display, WidgetHub.openApp(context))
+    // 입력하던 식과 통화를 그대로 들고 간다.
+    views.setOnClickPendingIntent(R.id.w_display, WidgetHub.openAppWith(context, state.currency, state.input))
     return views
 }
 
@@ -245,6 +246,7 @@ private fun bindHero(context: Context, views: RemoteViews, state: WidgetSnapshot
         } ?: "환율을 불러오는 중",
     )
     views.setTextColor(R.id.w_rate, context.getColor(staleColor(snapshot, R.color.w_muted)))
-    views.setOnClickPendingIntent(R.id.w_result, WidgetHub.openApp(context))
-    views.setOnClickPendingIntent(R.id.w_amount, WidgetHub.openApp(context))
+    val open = WidgetHub.openAppWith(context, currency, state.input)
+    views.setOnClickPendingIntent(R.id.w_result, open)
+    views.setOnClickPendingIntent(R.id.w_amount, open)
 }
