@@ -148,7 +148,8 @@ private fun buildKeypad(context: Context, layout: Int): RemoteViews {
         )
     }
     // 열기 키 대신 표시 영역 전체(식·결과·환율 줄과 그 여백)를 누르면 앱이 열린다.
-    views.setOnClickPendingIntent(R.id.w_display, WidgetHub.openApp(context))
+    // 입력하던 식과 통화를 그대로 들고 간다.
+    views.setOnClickPendingIntent(R.id.w_display, WidgetHub.openAppWith(context, state.currency, state.input))
     return views
 }
 
@@ -179,8 +180,10 @@ private class WidgetSnapshot(
     val snapshot: Snapshot?,
     val currency: Currency,
     val input: String,
+    /** 앱에서 고른 결제 수단. 앱으로 넘어갔을 때 금액이 달라지지 않도록 위젯도 같은 기준으로 계산한다. */
+    val mode: PriceMode,
 ) {
-    val rate: Double? get() = snapshot?.rateOf(currency)
+    val rate: Double? get() = snapshot?.rateOf(currency)?.let { mode.apply(it, currency) }
     /** 계산기 위젯은 식(20+15)을 넣을 수 있다. 0으로 나누면 null. */
     val amount: Double? get() = Expression.evaluate(input)
     val result: Double? get() = rate?.let { r -> amount?.let { it * r } }
@@ -190,6 +193,7 @@ private fun readState(context: Context) = WidgetSnapshot(
     snapshot = RateRepository(context).lastKnown(),
     currency = WidgetPrefs.currency(context),
     input = WidgetPrefs.input(context),
+    mode = SettingsStore(context).priceMode(),
 )
 
 private fun bindHeader(
@@ -240,11 +244,14 @@ private fun bindHero(context: Context, views: RemoteViews, state: WidgetSnapshot
     views.setTextViewText(
         R.id.w_rate,
         state.rate?.let { rate ->
+            // 기준율이 아니면 무엇이 더해진 금액인지 밝힌다. "100 JPY = 862.77원 · 카드 · 10/24 12:01"
             "$unit ${currency.code} = ${formatFixed(rate * unit, 2)}원" +
+                (if (state.mode != PriceMode.BASE) " · ${state.mode.shortLabel}" else "") +
                 (snapshot?.let { " · ${stamp(it)}" } ?: "")
         } ?: "환율을 불러오는 중",
     )
     views.setTextColor(R.id.w_rate, context.getColor(staleColor(snapshot, R.color.w_muted)))
-    views.setOnClickPendingIntent(R.id.w_result, WidgetHub.openApp(context))
-    views.setOnClickPendingIntent(R.id.w_amount, WidgetHub.openApp(context))
+    val open = WidgetHub.openAppWith(context, currency, state.input)
+    views.setOnClickPendingIntent(R.id.w_result, open)
+    views.setOnClickPendingIntent(R.id.w_amount, open)
 }

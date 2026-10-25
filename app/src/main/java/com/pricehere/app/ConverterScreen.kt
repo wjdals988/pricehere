@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,10 +20,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,6 +70,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -121,82 +125,89 @@ fun ConverterScreen(
     LaunchedEffect(inputFocused) {
         if (inputFocused) scroll.animateScrollTo(0)
     }
+    // 포커스만 보면 뒤로 가기로 키보드를 닫은 뒤에도 연산자가 남는다. 키보드가 실제로 떠 있을 때만.
+    val operators = inputFocused && imeBottom > 0.dp
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scroll)
-            .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }
-            .padding(horizontal = Space.gutter),
-    ) {
-        Header(
-            hasUpdate = state.hasUpdate,
-            onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
-            onVersionClick = onOpenVersion,
-        )
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scroll)
+                .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }
+                .padding(horizontal = Space.gutter),
+        ) {
+            Header(
+                hasUpdate = state.hasUpdate,
+                onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
+                onVersionClick = onOpenVersion,
+            )
 
-        if (state.snapshot?.source == RateSource.CACHE) {
-            OfflineBanner()
+            if (state.snapshot?.source == RateSource.CACHE) {
+                OfflineBanner()
+                Spacer(Modifier.height(Space.m))
+            }
+
+            CurrencySegments(selected = state.selected, onSelect = viewModel::select)
+
+            Spacer(Modifier.height(Space.xl))
+
+            val resultText = state.result?.let { format(it, state.toDecimals) } ?: "—"
+            ConvertCard(
+                state = state,
+                resultText = resultText,
+                focusRequester = amountFocus,
+                onFocusChange = { inputFocused = it },
+                onValueChange = viewModel::onInputChange,
+                onSwap = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    viewModel.swap()
+                },
+                onCopy = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    copyToClipboard(context, "$resultText ${state.toCurrencyCode}")
+                },
+                onSave = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    askMemo = true
+                },
+            )
+
             Spacer(Modifier.height(Space.m))
+            QuickAmounts(
+                values = state.quickAmounts,
+                canClear = state.input.isNotEmpty(),
+                onAdd = viewModel::addQuickAmount,
+                onClear = viewModel::clearInput,
+            )
+
+            Spacer(Modifier.height(Space.l))
+            RateCard(
+                state = state,
+                now = now,
+                onRefresh = { viewModel.refresh(manual = true) },
+                onPriceMode = viewModel::setPriceMode,
+            )
+
+            Spacer(Modifier.height(Space.m))
+            ToolRow(
+                refund = state.selected.taxRefund,
+                onTrend = {
+                    showTrend = true
+                    if (state.history.isEmpty()) viewModel.loadHistory()
+                },
+                onTip = { showTip = true },
+                onRefund = { showRefund = true },
+            )
+
+            Spacer(Modifier.height(Space.xl))
+            Spacer(Modifier.height(imeBottom + if (operators) OPERATOR_BAR_HEIGHT else 0.dp))
         }
-
-        CurrencySegments(selected = state.selected, onSelect = viewModel::select)
-
-        Spacer(Modifier.height(Space.xl))
-
-        val resultText = state.result?.let { format(it, state.toDecimals) } ?: "—"
-        ConvertCard(
-            state = state,
-            resultText = resultText,
-            focusRequester = amountFocus,
-            onFocusChange = { inputFocused = it },
-            onValueChange = viewModel::onInputChange,
-            onSwap = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                viewModel.swap()
-            },
-            onCopy = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                copyToClipboard(context, "$resultText ${state.toCurrencyCode}")
-            },
-            onSave = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                askMemo = true
-            },
-        )
-
-        Spacer(Modifier.height(Space.m))
-        QuickAmounts(
-            values = state.quickAmounts,
-            // 포커스만 보면 뒤로 가기로 키보드를 닫은 뒤에도 연산자가 남는다. 키보드가 실제로 떠 있을 때만.
-            operators = inputFocused && imeBottom > 0.dp,
-            canClear = state.input.isNotEmpty(),
-            onAdd = viewModel::addQuickAmount,
-            onOperator = viewModel::appendOperator,
-            onClear = viewModel::clearInput,
-        )
-
-        Spacer(Modifier.height(Space.l))
-        RateCard(
-            state = state,
-            now = now,
-            onRefresh = { viewModel.refresh(manual = true) },
-            onPriceMode = viewModel::setPriceMode,
-        )
-
-        Spacer(Modifier.height(Space.m))
-        ToolRow(
-            refund = state.selected.taxRefund,
-            onTrend = {
-                showTrend = true
-                if (state.history.isEmpty()) viewModel.loadHistory()
-            },
-            onTip = { showTip = true },
-            onRefund = { showRefund = true },
-        )
-
-        Spacer(Modifier.height(Space.xl))
-        Spacer(Modifier.height(imeBottom))
+        if (operators) {
+            OperatorBar(
+                modifier = Modifier.align(Alignment.BottomCenter).imePadding(),
+                onOperator = viewModel::appendOperator,
+            )
+        }
     }
 
     if (showTrend) {
@@ -547,10 +558,8 @@ private fun ConvertCard(
 @Composable
 private fun QuickAmounts(
     values: List<Long>,
-    operators: Boolean,
     canClear: Boolean,
     onAdd: (Long) -> Unit,
-    onOperator: (Char) -> Unit,
     onClear: () -> Unit,
 ) {
     // 초기화는 스크롤 영역 밖 오른쪽에 고정한다. 칩 줄 끝에 붙이면 통화마다
@@ -564,23 +573,9 @@ private fun QuickAmounts(
                 .horizontalScroll(chips),
             horizontalArrangement = Arrangement.spacedBy(Space.s),
         ) {
-            if (operators) {
-                // 시스템 숫자 키보드에는 연산자가 없다. 입력 중에는 이 줄이 연산자 키가 된다.
-                OPERATOR_CHIPS.forEach { (op, label) ->
-                    // 기호는 글자보다 작아 보여서 한 단계 크고 굵게 둔다. 칩 높이는 빠른 금액과 같다.
-                    Pill(
-                        text = label,
-                        selected = false,
-                        modifier = Modifier.width(52.dp),
-                        style = MaterialTheme.typography.titleMedium.copy(lineHeight = 17.sp),
-                        weight = FontWeight.SemiBold,
-                    ) { onOperator(op) }
-                }
-            } else {
-                values.forEach { value ->
-                    // "+"를 붙여 누를 때마다 더해진다는 것을 보여준다.
-                    Pill(text = "+" + format(value.toDouble(), 0), selected = false) { onAdd(value) }
-                }
+            values.forEach { value ->
+                // "+"를 붙여 누를 때마다 더해진다는 것을 보여준다.
+                Pill(text = "+" + format(value.toDouble(), 0), selected = false) { onAdd(value) }
             }
         }
         Spacer(Modifier.width(Space.s))
@@ -602,6 +597,73 @@ private fun QuickAmounts(
 }
 
 private val OPERATOR_CHIPS = listOf('+' to "+", '-' to "−", '*' to "×", '/' to "÷")
+
+private val OPERATOR_BAR_HEIGHT = 52.dp
+
+/**
+ * 시스템 숫자 키보드에는 연산자가 없다. 키보드가 떠 있는 동안 그 바로 위에 붙는 연산자 줄.
+ * 숫자 키에서 손가락이 가장 덜 움직이는 자리이고, 빠른 금액 칩은 바뀌지 않고 그대로 남는다.
+ */
+@Composable
+private fun OperatorBar(modifier: Modifier, onOperator: (Char) -> Unit) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(OPERATOR_BAR_HEIGHT)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 6.dp, vertical = 5.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        OPERATOR_CHIPS.forEach { (op, label) ->
+            OperatorKey(op = op, label = label, modifier = Modifier.weight(1f)) { onOperator(op) }
+        }
+    }
+}
+
+/**
+ * 연산자 키. 글꼴의 + − × ÷ 는 글리프마다 크기·높이가 달라(− 가 유독 짧고 낮다) 줄이 들쭉날쭉해진다.
+ * 같은 굵기의 선으로 직접 그려 네 기호의 크기와 중심을 맞춘다.
+ */
+@Composable
+private fun OperatorKey(op: Char, label: String, modifier: Modifier, onClick: () -> Unit) {
+    val ink = MaterialTheme.colorScheme.onSurface
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable(onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = OPERATOR_NAMES.getValue(op) },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(18.dp)) {
+            val stroke = 2.dp.toPx()
+            val half = 6.5.dp.toPx()
+            val c = center
+            fun line(dx: Float, dy: Float) = drawLine(
+                color = ink,
+                start = Offset(c.x - dx, c.y - dy),
+                end = Offset(c.x + dx, c.y + dy),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+            when (op) {
+                '+' -> { line(half, 0f); line(0f, half) }
+                '-' -> line(half, 0f)
+                // 대각선은 같은 길이면 + 보다 커 보여서 0.8배로 줄인다.
+                '*' -> { val d = half * 0.8f; line(d, d); line(d, -d) }
+                '/' -> {
+                    line(half, 0f)
+                    val dot = 4.2.dp.toPx()
+                    drawCircle(ink, radius = stroke * 0.65f, center = Offset(c.x, c.y - dot))
+                    drawCircle(ink, radius = stroke * 0.65f, center = Offset(c.x, c.y + dot))
+                }
+            }
+        }
+    }
+}
+
+private val OPERATOR_NAMES = mapOf('+' to "더하기", '-' to "빼기", '*' to "곱하기", '/' to "나누기")
 
 /**
  * 가로 스크롤 줄의 잘린 쪽 끝을 흐리게 한다. 칩이 반쯤 잘려 보이는 대신

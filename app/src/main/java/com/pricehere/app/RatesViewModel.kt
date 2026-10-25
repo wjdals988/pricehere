@@ -326,6 +326,18 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         }
     }
 
+    /** 위젯 계산기에서 넘어올 때. 식(1280*3+500)을 계산하지 않고 그대로 이어받는다. */
+    fun openInput(currency: Currency, input: String) {
+        select(currency)
+        _state.update {
+            it.copy(
+                foreignToKrw = true,
+                input = Expression.sanitize(input, MAX_INPUT),
+                externalTick = it.externalTick + 1,
+            )
+        }
+    }
+
     fun select(currency: Currency) {
         if (currency == _state.value.selected) return
         repo.saveSelected(currency)
@@ -337,6 +349,8 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
     fun setPriceMode(mode: PriceMode) {
         settings.setPriceMode(mode)
         _state.update { it.copy(priceMode = mode) }
+        // 계산기 위젯도 같은 결제 수단으로 계산한다.
+        WidgetHub.updateAll(getApplication())
     }
 
     fun toggleRefund() {

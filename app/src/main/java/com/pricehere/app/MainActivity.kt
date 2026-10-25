@@ -10,6 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -76,8 +77,13 @@ class MainActivity : ComponentActivity() {
 
     private fun handleExternal(intent: Intent?) {
         val code = intent?.getStringExtra(EXTRA_CURRENCY) ?: return
-        val amount = intent.getDoubleExtra(EXTRA_AMOUNT, 0.0).takeIf { it > 0 } ?: return
-        viewModel.openExternal(Currency.of(code), amount, intent.getBooleanExtra(EXTRA_FROM_KRW, false))
+        val input = intent.getStringExtra(EXTRA_INPUT)
+        if (input != null) {
+            viewModel.openInput(Currency.of(code), input)
+        } else {
+            val amount = intent.getDoubleExtra(EXTRA_AMOUNT, 0.0).takeIf { it > 0 } ?: return
+            viewModel.openExternal(Currency.of(code), amount, intent.getBooleanExtra(EXTRA_FROM_KRW, false))
+        }
         intent.removeExtra(EXTRA_CURRENCY)
     }
 
@@ -86,6 +92,8 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_AMOUNT = "com.pricehere.app.AMOUNT"
         /** true면 EXTRA_AMOUNT 는 원화다. 원 → 외화 방향으로 연다. */
         const val EXTRA_FROM_KRW = "com.pricehere.app.FROM_KRW"
+        /** 위젯 계산기의 입력 그대로(식 포함, ASCII 연산자). 있으면 EXTRA_AMOUNT 대신 쓴다. */
+        const val EXTRA_INPUT = "com.pricehere.app.INPUT"
     }
 }
 
@@ -104,7 +112,8 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = { BottomTabs(tab, state.saved.size, state.hasUpdate) { tab = it } },
     ) { inset ->
-        Box(Modifier.fillMaxSize().padding(inset)) {
+        // consume 해 두면 홈 화면의 imePadding 이 하단 탭 높이를 빼고 키보드 위에 딱 붙는다.
+        Box(Modifier.fillMaxSize().padding(inset).consumeWindowInsets(inset)) {
             when (tab) {
                 Tab.HOME -> ConverterScreen(
                     viewModel = viewModel,
