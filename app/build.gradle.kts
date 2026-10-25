@@ -27,8 +27,8 @@ android {
         applicationId = "com.pricehere.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "2.5.4"
+        versionCode = 23
+        versionName = "2.5.5"
     }
 
     signingConfigs {

@@ -349,6 +349,8 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
     fun setPriceMode(mode: PriceMode) {
         settings.setPriceMode(mode)
         _state.update { it.copy(priceMode = mode) }
+        // 계산기 위젯도 같은 결제 수단으로 계산한다.
+        WidgetHub.updateAll(getApplication())
     }
 
     fun toggleRefund() {
