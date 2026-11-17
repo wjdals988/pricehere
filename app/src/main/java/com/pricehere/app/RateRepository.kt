@@ -21,21 +21,17 @@ data class TipGuide(
     val note: String,
 )
 
-/** 세금을 돌려받는 방식. 매장에서 바로 빼주느냐, 나중에 환급받느냐가 다르다. */
-enum class RefundMode { IMMEDIATE, REFUND }
-
 /**
  * 여행자 부가세 환급 정보. 미국처럼 제도가 없는 곳은 null로 둔다.
  * minimumPurchase 는 한 매장에서 하루에 사야 하는 최소 금액(해당 통화 기준), 0이면 하한 없음.
  * minimumIsPreTax 가 참이면 그 최소 금액을 세금 뺀 가격과 비교한다(일본 "5,000엔 이상, 세금 제외").
- * netFactor 는 대행사 수수료를 뺀 실수령 비율이다. 즉시 면세는 수수료가 없어 1.0이다.
+ * netFactor 는 대행사 수수료를 뺀 실수령 비율이다. 수수료를 따로 정할 수 없으면 1.0으로 두고 문구로 알린다.
  */
 data class TaxRefund(
     val countryFlag: String,
     val countryName: String,
     val vatPercent: Double,
     val minimumPurchase: Double,
-    val mode: RefundMode = RefundMode.REFUND,
     val netFactor: Double = AGENCY_NET_FACTOR,
     val note: String? = null,
     val minimumIsPreTax: Boolean = false,
@@ -55,49 +51,33 @@ data class TaxRefund(
     fun estimatedRefund(price: Double): Double = vatIncludedIn(price) * netFactor
 
     val benefitLabel: String
-        get() = when (mode) {
-            RefundMode.IMMEDIATE -> "매장에서 바로 차감"
-            // 일본 개편 후처럼 공항에서 직접 돌려받으면 대행 수수료가 없다. "수수료 0% 차감"은 어색하다.
-            RefundMode.REFUND -> if (netFactor >= 1.0) {
-                "출국 공항에서 환급 예상"
-            } else {
-                "실수령 추정 (대행 수수료 ${(100 - netFactor * 100).toInt()}% 차감)"
-            }
+        get() = if (netFactor >= 1.0) {
+            // 일본처럼 수수료가 매장마다 달라 정할 수 없으면 "수수료 0% 차감"이라고 쓰지 않는다.
+            "반출 확인 후 환급 예상"
+        } else {
+            "실수령 추정 (대행 수수료 ${(100 - netFactor * 100).toInt()}% 차감)"
         }
 
     companion object {
         /** Global Blue 등 환급 대행사가 약 1/4을 수수료로 가져간다는 통설을 반영한 값. */
         const val AGENCY_NET_FACTOR = 0.75
 
-        /** 일본은 2026-11-01부터 매장 즉시 면세가 공항 환급으로 바뀐다. */
-        private val JAPAN_REFORM: LocalDate = LocalDate.of(2026, 11, 1)
-
-        fun japan(today: LocalDate = LocalDate.now(SEOUL_ZONE)): TaxRefund =
-            if (today.isBefore(JAPAN_REFORM)) {
-                TaxRefund(
-                    countryFlag = "🇯🇵",
-                    countryName = "일본",
-                    vatPercent = 10.0,
-                    minimumPurchase = 5_000.0,
-                    minimumIsPreTax = true,
-                    mode = RefundMode.IMMEDIATE,
-                    netFactor = 1.0,
-                    note = "면세 매장에서 여권을 보여주면 계산할 때 소비세가 바로 빠집니다. " +
-                        "2026년 11월 1일부터는 정가를 내고 출국 공항에서 환급받는 방식으로 바뀝니다.",
-                )
-            } else {
-                TaxRefund(
-                    countryFlag = "🇯🇵",
-                    countryName = "일본",
-                    vatPercent = 10.0,
-                    minimumPurchase = 5_000.0,
-                    minimumIsPreTax = true,
-                    mode = RefundMode.REFUND,
-                    netFactor = 1.0,
-                    note = "2026년 11월 개편된 제도입니다. 정가를 내고 출국 공항의 면세 단말기에서 " +
-                        "여권과 물품을 제시해 환급받습니다. 짐을 부치기 전에 처리해야 합니다.",
-                )
-            }
+        /**
+         * 일본 리펀드 방식(2026-11-01 시행). 공항 단말기는 반출만 확인하고, 돈은 구매한 매장이나
+         * 환급 대행사가 나중에 돌려준다. 수수료는 매장마다 달라 정할 수 없어 netFactor 1.0으로 두고 문구로 알린다.
+         * 근거: 일본 세관 Tax Exemption (Refund) Program 안내(2026-11-17 확인).
+         */
+        val JAPAN = TaxRefund(
+            countryFlag = "🇯🇵",
+            countryName = "일본",
+            vatPercent = 10.0,
+            minimumPurchase = 5_000.0,
+            minimumIsPreTax = true,
+            netFactor = 1.0,
+            note = "정가로 결제한 뒤 출국 공항 단말기에서 반출 확인을 받습니다. " +
+                "확인이 끝나면 구매한 매장이나 환급 대행사가 소비세를 돌려줍니다. " +
+                "구매일부터 90일 안에 반출 확인을 받아야 합니다. 매장에 따라 수수료가 있을 수 있습니다.",
+        )
 
         val SEOUL_ZONE: ZoneId = ZoneId.of("Asia/Seoul")
     }
@@ -148,7 +128,7 @@ enum class Currency(
     ),
     JPY(
         "JPY", "일본 엔", "🇯🇵", 100, 0, listOf(500, 1_000, 5_000, 10_000, 50_000), 1.2, 1.75,
-        { TaxRefund.japan(it) },
+        { TaxRefund.JAPAN },
         TipGuide(
             "🇯🇵", listOf(0, 5, 10),
             "일본은 팁 문화가 없습니다. 두고 나오면 오히려 돌려주려 하거나 당황하게 만들 수 있어서 " +
