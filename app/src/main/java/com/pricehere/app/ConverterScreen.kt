@@ -15,6 +15,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +63,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
@@ -384,13 +386,23 @@ private fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
                     .semantics { contentDescription = currency.koreanName },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = currency.code,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 국기는 고르지 않은 칸에서 살짝 흐리게 둔다. 고른 칸이 먼저 눈에 들어오게.
+                    Text(
+                        text = currency.flag,
+                        fontSize = Num.flag,
+                        modifier = Modifier.alpha(if (on) 1f else 0.75f),
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = currency.code,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
         }
     }
@@ -424,6 +436,7 @@ private fun PriceTag(
     val ink = MaterialTheme.colorScheme.onPrimaryContainer
     val top = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     val bottom = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+    var selectAllNext by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -470,7 +483,10 @@ private fun PriceTag(
             // 문자열만 넘기면 커서가 옛 위치에 남아 다음 입력이 중간에 끼어든다.
             var field by remember { mutableStateOf(TextFieldValue(state.input)) }
             if (field.text != state.input) {
-                field = TextFieldValue(state.input, TextRange(state.input.length))
+                // 결과 칸을 눌러 방향을 바꾼 직후에는 넘어온 값을 통째로 선택해 둔다. 바로 치면 새 금액으로 바뀐다.
+                val range = if (selectAllNext) TextRange(0, state.input.length) else TextRange(state.input.length)
+                field = TextFieldValue(state.input, range)
+                selectAllNext = false
             }
             Row(verticalAlignment = Alignment.Bottom) {
                 BasicTextField(
@@ -541,7 +557,17 @@ private fun PriceTag(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Brush.verticalGradient(listOf(mintTop, mintBottom)))
-                .clickable(onClick = onCopy)
+                // 결과 칸을 누르면 그 통화로 입력한다(원화 결과면 원화 입력). 복사는 길게 누르기.
+                .combinedClickable(
+                    onClickLabel = "${state.toCurrencyCode}로 입력",
+                    onLongClickLabel = "결과 복사",
+                    onLongClick = onCopy,
+                    onClick = {
+                        selectAllNext = state.result != null && state.result != 0.0
+                        onSwap()
+                        focusRequester.requestFocus()
+                    },
+                )
                 .padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 14.dp),
         ) {
             Text(
@@ -574,7 +600,7 @@ private fun PriceTag(
                 // 원화 결과는 "약 3만 7천원"으로 감을 준다. 만 원 미만이거나 외화면 복사 안내.
                 val approx = state.result?.takeIf { state.toCurrencyCode == "KRW" }?.let(::approxWon)
                 Text(
-                    text = approx ?: if (state.showHints) "숫자를 누르면 복사" else "",
+                    text = approx ?: if (state.showHints) "눌러서 ${if (state.toCurrencyCode == "KRW") "원화" else state.toCurrencyCode} 입력 · 길게 눌러 복사" else "",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (approx != null) FontWeight.Bold else FontWeight.Normal,
                     color = if (approx != null) MaterialTheme.colorScheme.primary else ink.copy(alpha = 0.5f),

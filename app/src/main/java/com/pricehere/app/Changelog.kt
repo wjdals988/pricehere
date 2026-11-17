@@ -10,6 +10,16 @@ data class Release(
 /** 최신 버전이 맨 위. 배포할 때마다 여기에 한 블록씩 쌓는다. */
 val CHANGELOG: List<Release> = listOf(
     Release(
+        version = "2.7.1",
+        date = "2026-11-18",
+        headline = "원화로도 바로 입력합니다",
+        notes = listOf(
+            "결과 칸을 누르면 그 통화로 입력 방향이 바뀝니다. 원화 결과를 누르면 원화 입력",
+            "결과 복사는 결과 칸을 길게 눌러서 합니다",
+            "통화 선택 칸에 국기를 함께 표시합니다",
+        ),
+    ),
+    Release(
         version = "2.7.0",
         date = "2026-11-17",
         headline = "화면을 새로 다듬었습니다",
