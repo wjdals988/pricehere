@@ -3,63 +3,69 @@
     android:id="@+id/w_root"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:background="@drawable/w_bg"
-    android:padding="8dp">
+    android:padding="10dp">
 
+    <!-- 통화 칩. 고른 칩만 진한 알약, 나머지는 글자만. -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical">
         <TextView android:id="@+id/w_cur_usd" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
+            android:layout_marginEnd="2dp" android:background="@drawable/w_chip"
             android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
             android:text="USD" android:maxLines="1" />
         <TextView android:id="@+id/w_cur_eur" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
+            android:layout_marginEnd="2dp" android:background="@drawable/w_chip"
             android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
             android:text="EUR" android:maxLines="1" />
         <TextView android:id="@+id/w_cur_jpy" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
+            android:layout_marginEnd="2dp" android:background="@drawable/w_chip"
             android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
             android:text="JPY" android:maxLines="1" />
         <TextView android:id="@+id/w_cur_czk" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
+            android:layout_marginEnd="6dp" android:background="@drawable/w_chip"
             android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
             android:text="CZK" android:maxLines="1" />
         <ImageView android:id="@+id/w_refresh" android:layout_width="22dp" android:layout_height="22dp"
             android:src="@drawable/w_refresh" android:contentDescription="새로고침" />
     </LinearLayout>
     <!--
-      큰 위젯용 표시 영역. 계산기 관례대로 식은 위에 작고 흐리게(전체), 결과는 아래에 가장 크게 오른쪽 정렬.
-      키 높이가 충분할 때만 쓴다(WidgetRender.KEYPAD_TALL_MIN_HEIGHT). 작은 위젯은 한 줄 표시(widget_keypad).
+      표시 영역. 바탕 없이 계산기처럼 오른쪽 정렬: 식은 위에 작게, 결과는 가장 크게, 환율은 맨 아래.
+      누르면 식과 통화를 들고 앱이 열린다(WidgetRender.buildKeypad).
     -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:id="@+id/w_display"
-        android:orientation="vertical" android:background="@drawable/w_hero"
-        android:paddingStart="14dp" android:paddingEnd="14dp"
-        android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginTop="6dp">
+        android:orientation="vertical"
+        android:paddingStart="8dp" android:paddingEnd="8dp"
+        android:paddingTop="8dp" android:paddingBottom="6dp">
         <TextView android:id="@+id/w_amount" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:gravity="end" android:textSize="16sp" android:textColor="@color/w_muted"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="sans-serif-medium" android:fontFeatureSettings="tnum"
             android:singleLine="true" android:ellipsize="start" />
         <TextView android:id="@+id/w_result" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:gravity="end" android:textSize="34sp" android:textStyle="bold"
+            android:gravity="end" android:textSize="40sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:letterSpacing="-0.02"
             android:textColor="@color/w_text" android:maxLines="1" android:ellipsize="end" />
         <TextView android:id="@+id/w_rate" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:gravity="end" android:paddingTop="2dp" android:textSize="11sp" android:textColor="@color/w_muted"
-            android:maxLines="1" />
+            android:gravity="end" android:textSize="12sp" android:textColor="@color/w_muted"
+            android:fontFeatureSettings="tnum" android:maxLines="1" />
     </LinearLayout>
     <!--
-      큰 위젯: 4열 x 5행. 휴대폰 계산기처럼 맨 위 행은 기능 키, 오른쪽 열은 연산자,
-      숫자 패드처럼 가장 자주 누르는 +는 오른쪽 아래 2칸. 앱은 표시 영역을 눌러 연다(열기 키 없음).
-      C는 2칸 폭. 폭을 "4dp(건너뛴 간격) + weight 2"로 잡아 아래 두 키 폭과 간격을 합친 길이와 같다.
+      4열 x 5행, 휴대폰 계산기와 같은 배치.
+        C  ⌫  00 ÷
+        7  8  9  ×
+        4  5  6  −
+        1  2  3  +
+        0(2칸) .  +
+      기능 키(C ⌫ 00)는 테두리만 두어 가장 덜 눌리게 한다. 0은 가로 2칸, +는 세로 2칸.
       2칸짜리 키가 있는 블록은 높이를 4dp(행 간격) + 2행분으로 잡아야 다른 행과 키 높이가 같아진다.
     -->
     <LinearLayout style="@style/WKeyRow">
-        <TextView android:id="@+id/kclr" style="@style/WKey.Fn" android:layout_width="4dp" android:layout_weight="2"
-            android:text="C" android:contentDescription="모두 지우기" />
+        <TextView android:id="@+id/kclr" style="@style/WKey.Fn" android:text="C" android:contentDescription="모두 지우기" />
         <TextView android:id="@+id/kdel" style="@style/WKey.Fn" android:text="⌫" android:contentDescription="지우기" />
+        <TextView android:id="@+id/k00" style="@style/WKey.Fn" android:text="00" />
         <TextView android:id="@+id/kdiv" style="@style/WKey.Op.Last" android:text="÷" />
     </LinearLayout>
     <LinearLayout style="@style/WKeyRow">
@@ -82,8 +88,8 @@
                 <TextView android:id="@+id/k3" style="@style/WKey.Digit.Last" android:text="3" />
             </LinearLayout>
             <LinearLayout style="@style/WKeyBlockRow" android:layout_marginTop="4dp">
-                <TextView android:id="@+id/k00" style="@style/WKey.Digit" android:text="00" />
-                <TextView android:id="@+id/k0" style="@style/WKey.Digit" android:text="0" />
+                <!-- 0은 가로 2칸. 폭을 "4dp(건너뛴 간격) + weight 2"로 잡아 위 두 키 폭과 간격을 합친 길이와 같다. -->
+                <TextView android:id="@+id/k0" style="@style/WKey.Digit" android:layout_width="4dp" android:layout_weight="2" android:text="0" />
                 <TextView android:id="@+id/kdot" style="@style/WKey.Digit.Last" android:text="." />
             </LinearLayout>
         </LinearLayout>

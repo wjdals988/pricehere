@@ -19,6 +19,19 @@
         </aapt:attr>
     </path>
 
+    <!-- 위에서 빛을 받는 느낌. 런처는 안쪽 72(18~90)만 보여주므로 18부터 밝게 시작한다. (v2.7 C안) -->
+    <path android:pathData="M0,0 L108,0 L108,62 L0,62 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="18"
+                android:endX="54" android:endY="62">
+                <item android:offset="0.0" android:color="#2EFFFFFF" />
+                <item android:offset="1.0" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
     <!-- 오른쪽 위에서 떨어지는 은은한 광택 -->
     <path android:pathData="M108,0 L108,62 C78,44 58,20 54,0 Z"
         android:fillColor="#FFFFFFFF"

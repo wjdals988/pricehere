@@ -1,18 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="w_bg">#FFFFFFFF</color>
+    <color name="w_bg">#FFF2F5F4</color>
+    <!-- v2.7: 위젯 바탕과 키 색을 뒤집어 키가 떠 보이게 한다. -->
+    <color name="w_key">#FFFFFFFF</color>
+    <color name="w_ink">#FF15201D</color>
     <color name="w_text">#FF141C1A</color>
     <color name="w_muted">#FF5B6B67</color>
     <color name="w_accent">#FF0B6E5E</color>
     <color name="w_on_accent">#FFFFFFFF</color>
     <color name="w_chip">#FFEDF2F0</color>
-    <color name="w_hero">#FFD8F5EC</color>
-    <color name="w_divider">#FFE2E9E7</color>
+    <color name="w_hero">#FFFFFFFF</color>
+    <color name="w_divider">#FFD3DDD9</color>
     <color name="w_up">#FFE12D39</color>
     <color name="w_down">#FF1B64DA</color>
     <color name="w_key_fn">#FFD3DEDA</color>
-    <color name="w_key_op">#FFCDE8E1</color>
-    <color name="w_key_pressed">#FFC9D3D0</color>
+    <color name="w_key_op">#FFD7F2E9</color>
+    <color name="w_key_pressed">#FFE0E8E5</color>
     <color name="w_key_op_pressed">#FFA9D6CA</color>
     <color name="w_stale">#FFDC3545</color>
 </resources>
