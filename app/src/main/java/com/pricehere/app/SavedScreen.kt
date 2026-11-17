@@ -28,11 +28,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,12 +45,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.time.ZoneId
 import kotlinx.coroutines.launch
 
 @Composable
@@ -66,11 +77,26 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
         }
     }
 
+    // 걸으면서 한 손으로 누르다 잘못 지우기 쉽다. 확인 창 대신 되돌리기를 준다.
+    fun delete(item: SavedItem) {
+        val removed = viewModel.deleteSaved(item.id) ?: return
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            val result = snackbar.showSnackbar(
+                message = "‘${removed.memo}’ 삭제했습니다",
+                actionLabel = "되돌리기",
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.restoreSaved(removed)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .ambientGlow()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = Space.gutter),
+            .padding(horizontal = Space.l),
     ) {
         SavedHeader(
             picking = picking,
@@ -102,42 +128,36 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
 
         Spacer(Modifier.height(Space.l))
 
-        items.forEach { item ->
-            SavedRow(
-                item = item,
-                currentRate = state.snapshot?.rates?.get(item.currencyCode),
-                picking = picking,
-                checked = item.id in picked,
-                onToggle = {
-                    if (item.id in picked) picked.remove(item.id) else picked.add(item.id)
-                },
-                onShare = {
-                    shareText(
-                        context,
-                        buildSavedShareText(listOf(item), state.snapshot),
-                        "${item.memo} 공유",
+        // 항목을 한 묶음 목록으로. 카드가 항목마다 떠 있으면 합계 카드와 무게가 같아 보인다.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surface),
+        ) {
+            items.forEachIndexed { i, item ->
+                key(item.id) {
+                    SavedRow(
+                        item = item,
+                        currentRate = state.snapshot?.rates?.get(item.currencyCode),
+                        picking = picking,
+                        checked = item.id in picked,
+                        onToggle = {
+                            if (item.id in picked) picked.remove(item.id) else picked.add(item.id)
+                        },
+                        onDelete = { delete(item) },
                     )
-                },
-                // 걸으면서 한 손으로 누르다 잘못 지우기 쉽다. 확인 창 대신 되돌리기를 준다.
-                onDelete = {
-                    val removed = viewModel.deleteSaved(item.id) ?: return@SavedRow
-                    scope.launch {
-                        snackbar.currentSnackbarData?.dismiss()
-                        val result = snackbar.showSnackbar(
-                            message = "‘${removed.memo}’ 삭제했습니다",
-                            actionLabel = "되돌리기",
-                            duration = SnackbarDuration.Short,
-                        )
-                        if (result == SnackbarResult.ActionPerformed) viewModel.restoreSaved(removed)
-                    }
-                },
-            )
-            Spacer(Modifier.height(Space.m))
+                }
+                if (i < items.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                }
+            }
         }
 
         Spacer(Modifier.height(Space.s))
 
         if (picking) {
+            Spacer(Modifier.height(Space.s))
             ShareSelectedButton(
                 count = picked.size,
                 onShare = {
@@ -151,7 +171,16 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
                 },
             )
         } else {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "왼쪽으로 밀어서 삭제",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
                 Text(
                     text = "전체 삭제",
                     style = MaterialTheme.typography.labelMedium,
@@ -160,19 +189,19 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
                     modifier = Modifier
                         .clip(Radius.badgeShape)
                         .clickable { askClear = true }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                 )
             }
         }
 
-        Spacer(Modifier.height(Space.xl))
+        Spacer(Modifier.height(NavClearance))
     }
 
     if (askClear) {
         AlertDialog(
             onDismissRequest = { askClear = false },
             title = { Text("전체 삭제", fontWeight = FontWeight.Bold) },
-            text = { Text("저장한 ${items.size}개를 모두 지웁니다. 되돌릴 수 없습니다.") },
+            text = { Text("저장한 ${items.size}건을 모두 삭제합니다. 되돌릴 수 없습니다.") },
             confirmButton = {
                 TextButton(onClick = { askClear = false; viewModel.clearSaved() }) {
                     Text("삭제", color = MaterialTheme.colorScheme.error)
@@ -195,15 +224,14 @@ private fun SavedHeader(
     onToggleAll: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp),
+        modifier = Modifier.fillMaxWidth().height(72.dp).padding(start = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = if (picking) "${pickedCount}개 선택" else "저장한 금액",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.6).sp,
+            text = if (picking) "${pickedCount}건 선택" else "저장한 금액",
+            style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.8).sp),
             color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
         )
         Spacer(Modifier.weight(1f))
 
@@ -215,11 +243,17 @@ private fun SavedHeader(
             Spacer(Modifier.width(Space.xs))
             TextAction(text = "취소", onClick = onCancelPicking)
         } else if (totalCount > 0) {
-            RoundAction(onClick = onStartPicking) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .glass(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onStartPicking),
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(
                     imageVector = Icons.Filled.Share,
-                    contentDescription = "골라서 공유",
-                    modifier = Modifier.size(17.dp),
+                    contentDescription = "선택 공유",
+                    modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -234,6 +268,7 @@ private fun TextAction(text: String, onClick: () -> Unit) {
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
         modifier = Modifier
             .clip(Radius.badgeShape)
             .clickable(onClick = onClick)
@@ -245,31 +280,21 @@ private fun TextAction(text: String, onClick: () -> Unit) {
 private fun ShareSelectedButton(count: Int, onShare: () -> Unit) {
     val enabled = count > 0
     Text(
-        text = if (enabled) "${count}개 공유하기" else "공유할 항목을 골라 주세요",
+        text = if (enabled) "${count}건 공유" else "공유할 항목 선택",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center,
-        color = if (enabled) {
-            MaterialTheme.colorScheme.onPrimary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
+        color = if (enabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
             .clip(Radius.pillShape)
-            .background(
-                if (enabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                }
-            )
+            .background(if (enabled) TealGradient else Brush.linearGradient(List(2) { MaterialTheme.colorScheme.surfaceContainerHigh }))
             .clickable(enabled = enabled, onClick = onShare)
             .padding(vertical = 16.dp),
     )
 }
 
-// ---------------------------------------------------------------- 목록
+// ---------------------------------------------------------------- 비었을 때
 
 @Composable
 private fun EmptyState() {
@@ -281,23 +306,22 @@ private fun EmptyState() {
         Box(
             modifier = Modifier
                 .size(64.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                .glass(CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text("🏷", fontSize = 26.sp)
+            TagIcon(MaterialTheme.colorScheme.primary, sizeDp = 26)
         }
         Spacer(Modifier.height(Space.l))
         Text(
-            text = "저장한 금액이 없습니다",
+            text = "저장한 금액 없음",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(Space.s))
         Text(
-            text = "홈 화면에서 금액을 넣고 결과 카드의 ＋ 저장을 누르면\n" +
-                "여기에 쌓입니다. 나중에 최신 환율로 다시 계산해 보여줍니다.",
+            text = "홈에서 금액을 넣고 저장을 누르면 여기에 쌓입니다.\n" +
+                "다시 열 때마다 최신 환율로 계산합니다.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -305,96 +329,145 @@ private fun EmptyState() {
     }
 }
 
+// ---------------------------------------------------------------- 합계
+
+/** 위 칸은 합계, 아래 민트 칸은 입국 면세 한도. 홈의 가격표와 같은 구성이다. */
 @Composable
 private fun TotalCard(items: List<SavedItem>, state: UiState, now: Long, onRefresh: () -> Unit) {
+    val dark = isDark()
     val snapshot = state.snapshot
     val total = items.sumOf { item ->
         item.krwAt(snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave)
     }
     val totalAtSave = items.sumOf { it.krwAtSave }
     val diff = total - totalAtSave
+    val mintTop = if (dark) Hero.darkTop else Color(0xFFDDF5EC)
+    val mintBottom = if (dark) Hero.darkBottom else Color(0xFFCFEFE4)
 
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainerHigh) {
-        Text(
-            text = "저장한 ${items.size}개 합계",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(Space.s))
-        Text(
-            text = "${format(total, 0)}원",
-            style = amountStyle(MaterialTheme.colorScheme.onSurface, size = 28),
-        )
-        if (kotlin.math.abs(diff) >= 1.0) {
-            Spacer(Modifier.height(Space.s))
-            DeltaText(diff)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .shadow(14.dp, RoundedCornerShape(24.dp), ambientColor = Color(0x330B3C32), spotColor = Color(0x660B3C32))
+            .clip(RoundedCornerShape(24.dp)),
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp),
+        ) {
+            Text(
+                text = "${items.size}건 합계 · 현재 환율 기준",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = Space.xs)) {
+                Text(
+                    text = format(total, 0),
+                    style = Num.amount(36).copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+                Text(
+                    text = "원",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 2.dp, top = 8.dp),
+                )
+                if (kotlin.math.abs(diff) >= 1.0) {
+                    Spacer(Modifier.width(Space.s))
+                    DeltaPill(diff)
+                }
+            }
+            if (snapshot != null) {
+                val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
+                Spacer(Modifier.height(Space.xs))
+                StatusLine(
+                    snapshot = snapshot,
+                    minutes = minutes,
+                    unit = state.selected.quoteUnit,
+                    code = state.selected.code,
+                    outcome = state.outcome,
+                    loading = state.loading,
+                    onRefresh = onRefresh,
+                )
+            }
         }
         snapshot?.let { dutyFreeUsd(items, it.rates) }?.let { usd ->
-            Spacer(Modifier.height(Space.m))
-            DutyFreeGauge(usd)
-        }
-        if (snapshot != null) {
-            val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
-            Spacer(Modifier.height(Space.s))
-            StatusLine(
-                snapshot = snapshot,
-                minutes = minutes,
-                unit = state.selected.quoteUnit,
-                code = state.selected.code,
-                outcome = state.outcome,
-                loading = state.loading,
-                onRefresh = onRefresh,
-            )
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Brush.verticalGradient(listOf(mintTop, mintBottom)))
+                    .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 16.dp),
+            ) {
+                DutyFreeGauge(usd)
+            }
         }
     }
 }
 
 /**
  * 입국 면세 한도까지 얼마나 찼는지. 쇼핑 중에 "이제 신고 대상인가"를 바로 보게 한다.
- * 1인 기준이고 술·담배·향수는 따로라서, 넘었다고 단정하지 않고 참고 문구를 붙인다.
+ * 1인 기준이고 주류·담배·향수는 따로라서, 넘었다고 단정하지 않고 참고 문구를 붙인다.
  */
 @Composable
 private fun DutyFreeGauge(usd: Double) {
     val over = usd > DUTY_FREE_USD
     val dark = isDark()
-    val tint = when {
-        over && dark -> Trend.risingDark
-        over -> Trend.rising
-        else -> MaterialTheme.colorScheme.primary
+    val ink = MaterialTheme.colorScheme.onPrimaryContainer
+    val alert = if (dark) Trend.risingDark else Trend.rising
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "입국 면세 한도",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = ink,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = "$${format(usd, 0)} / $${format(DUTY_FREE_USD, 0)}",
+            style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = Num.FEATURES),
+            fontWeight = FontWeight.Bold,
+            color = if (over) alert else ink,
+            maxLines = 1,
+        )
     }
-    Text(
-        text = if (over) {
-            "입국 면세 한도를 ${format(usd - DUTY_FREE_USD, 0)}달러 넘었습니다"
-        } else {
-            "입국 면세 한도 ${format(DUTY_FREE_USD, 0)}달러 중 ${format(usd, 0)}달러"
-        },
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = if (over) tint else MaterialTheme.colorScheme.onSurface,
-    )
-    Spacer(Modifier.height(Space.xs))
+    Spacer(Modifier.height(Space.s))
     Box(
         Modifier
             .fillMaxWidth()
-            .height(6.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            .height(10.dp)
+            .clip(RoundedCornerShape(5.dp))
+            .background(ink.copy(alpha = 0.12f)),
     ) {
         Box(
             Modifier
                 .fillMaxWidth((usd / DUTY_FREE_USD).toFloat().coerceIn(0f, 1f))
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(tint),
+                .height(10.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(if (over) Brush.linearGradient(listOf(alert, alert)) else TealGradient),
         )
     }
-    Spacer(Modifier.height(Space.xs))
+    Spacer(Modifier.height(Space.s))
     Text(
-        text = "1인 기준 참고값 · 술·담배·향수는 따로 셉니다",
+        text = if (over) {
+            "${format(usd - DUTY_FREE_USD, 0)}달러 초과 · 1인 기준, 주류·담배·향수 별도"
+        } else {
+            "${format(DUTY_FREE_USD - usd, 0)}달러 남음 · 1인 기준, 주류·담배·향수 별도"
+        },
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = if (over) alert else ink.copy(alpha = 0.75f),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
     )
 }
+
+// ---------------------------------------------------------------- 목록
+
+private val SHORT_DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d").withZone(ZoneId.of("Asia/Seoul"))
 
 @Composable
 private fun SavedRow(
@@ -403,102 +476,86 @@ private fun SavedRow(
     picking: Boolean,
     checked: Boolean,
     onToggle: () -> Unit,
-    onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val nowKrw = item.krwAt(currentRate ?: item.rateAtSave)
     val diff = nowKrw - item.krwAtSave
-
-    SectionCard(
-        modifier = if (picking) Modifier.clickable(onClick = onToggle) else Modifier,
-        background = if (picking && checked) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
+    val dismiss = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else {
+                false
+            }
         },
-        corner = 18,
+    )
+
+    SwipeToDismissBox(
+        state = dismiss,
+        enableDismissFromStartToEnd = false,
+        gesturesEnabled = !picking,
+        backgroundContent = {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(end = 20.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    if (picking && checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                )
+                .clickable(enabled = picking, onClick = onToggle)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (picking) {
                 Checkbox(checked = checked, onCheckedChange = { onToggle() })
                 Spacer(Modifier.width(Space.xs))
             }
-            Text(item.currency.flag, fontSize = Num.flag)
-            Spacer(Modifier.width(Space.s))
-            Text(
-                text = item.memo,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.weight(1f))
-            if (!picking) {
-                // 공유·삭제가 맞붙어 있어 Compose의 터치 영역 자동 확장(48dp)이 서로 겹친다.
-                // 보이는 크기 자체를 40dp로 키워 이웃 버튼을 잘못 누를 여지를 줄인다.
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onShare),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Share,
-                        contentDescription = "이 항목만 공유",
-                        modifier = Modifier.size(15.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onDelete),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "삭제",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    )
-                }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = item.memo,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${format(item.amount, item.currency.decimals)} ${item.currencyCode}" +
+                        (if (item.mode != PriceMode.BASE) " · ${item.mode.shortLabel}" else "") +
+                        " · ${SHORT_DAY.format(Instant.ofEpochMilli(item.savedAtMillis))}",
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = Num.FEATURES),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-        }
-
-        Spacer(Modifier.height(Space.m))
-
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = "${format(nowKrw, 0)}원",
-                style = amountStyle(MaterialTheme.colorScheme.onSurface, size = 26),
-            )
-            Spacer(Modifier.width(Space.s))
-            Text(
-                text = "${format(item.amount, item.currency.decimals)} ${item.currencyCode}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-        }
-
-        Spacer(Modifier.height(Space.m))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(Space.s))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "${DAY_STAMP.format(Instant.ofEpochMilli(item.savedAtMillis))} 저장 · " +
-                    (if (item.mode != PriceMode.BASE) "${item.mode.shortLabel} · " else "") +
-                    "${format(item.krwAtSave, 0)}원",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            DeltaText(diff)
+            Spacer(Modifier.width(Space.m))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${format(nowKrw, 0)}원",
+                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = Num.FEATURES),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+                DeltaText(diff)
+            }
         }
     }
 }
@@ -515,17 +572,41 @@ private fun DeltaText(diff: Double) {
         return
     }
     val rising = diff > 0
+    val tint = trendTint(rising)
+    Text(
+        text = "${if (rising) "▲" else "▼"} ${format(kotlin.math.abs(diff), 0)}",
+        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = Num.FEATURES),
+        fontWeight = FontWeight.Bold,
+        color = tint,
+        maxLines = 1,
+    )
+}
+
+@Composable
+private fun DeltaPill(diff: Double) {
+    val rising = diff > 0
+    val tint = trendTint(rising)
+    Text(
+        text = "${if (rising) "▲" else "▼"} ${format(kotlin.math.abs(diff), 0)}",
+        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = Num.FEATURES),
+        fontWeight = FontWeight.Bold,
+        color = tint,
+        maxLines = 1,
+        softWrap = false,
+        modifier = Modifier
+            .clip(Radius.pillShape)
+            .background(tint.copy(alpha = if (isDark()) 0.16f else 0.10f))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    )
+}
+
+@Composable
+private fun trendTint(rising: Boolean): Color {
     val dark = isDark()
-    val tint = when {
+    return when {
         rising && dark -> Trend.risingDark
         rising -> Trend.rising
         dark -> Trend.fallingDark
         else -> Trend.falling
     }
-    Text(
-        text = "${if (rising) "▲" else "▼"} ${format(kotlin.math.abs(diff), 0)}원",
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = tint,
-    )
 }

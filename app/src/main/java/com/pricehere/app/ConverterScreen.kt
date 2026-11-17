@@ -7,6 +7,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -37,6 +41,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -59,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -69,15 +75,20 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -97,6 +108,7 @@ fun ConverterScreen(
     viewModel: RatesViewModel,
     state: UiState,
     onOpenVersion: () -> Unit,
+    onOpenSaved: () -> Unit,
 ) {
     val focus = LocalFocusManager.current
     val context = LocalContext.current
@@ -117,6 +129,11 @@ fun ConverterScreen(
         }
     }
 
+    // 도구 칸의 미니 차트용. 통화를 바꾸면 select()가 추이를 비우므로 그때마다 다시 받는다.
+    LaunchedEffect(state.selected) {
+        if (state.history.isEmpty() && !state.historyLoading) viewModel.loadHistory()
+    }
+
     val scroll = rememberScrollState()
     var inputFocused by remember { mutableStateOf(false) }
 
@@ -127,21 +144,25 @@ fun ConverterScreen(
         if (inputFocused) scroll.animateScrollTo(0)
     }
     // 포커스만 보면 뒤로 가기로 키보드를 닫은 뒤에도 연산자가 남는다. 키보드가 실제로 떠 있을 때만.
-    val operators = inputFocused && imeBottom > 0.dp
+    val typing = inputFocused && imeBottom > 0.dp
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().ambientGlow()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scroll)
                 .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }
-                .padding(horizontal = Space.gutter),
+                .padding(horizontal = Space.l),
         ) {
-            Header(
-                hasUpdate = state.hasUpdate,
-                onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
-                onVersionClick = onOpenVersion,
-            )
+            // 입력 중에는 헤더와 아래 도구를 접어 금액과 결과만 남긴다.
+            AnimatedVisibility(visible = !typing) {
+                Header(
+                    hasUpdate = state.hasUpdate,
+                    onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
+                    onVersionClick = onOpenVersion,
+                )
+            }
+            if (typing) Spacer(Modifier.height(Space.m))
 
             if (state.snapshot?.source == RateSource.CACHE) {
                 OfflineBanner()
@@ -150,10 +171,10 @@ fun ConverterScreen(
 
             CurrencySegments(selected = state.selected, onSelect = viewModel::select)
 
-            Spacer(Modifier.height(Space.xl))
+            Spacer(Modifier.height(Space.m))
 
             val resultText = state.result?.let { format(it, state.toDecimals) } ?: "—"
-            ConvertCard(
+            PriceTag(
                 state = state,
                 resultText = resultText,
                 focusRequester = amountFocus,
@@ -171,42 +192,42 @@ fun ConverterScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     askMemo = true
                 },
-            )
-
-            Spacer(Modifier.height(Space.m))
-            QuickAmounts(
-                values = state.quickAmounts,
-                canClear = state.input.isNotEmpty(),
                 onAdd = viewModel::addQuickAmount,
                 onClear = viewModel::clearInput,
             )
 
-            Spacer(Modifier.height(Space.l))
-            RateCard(
-                state = state,
-                now = now,
-                onRefresh = { viewModel.refresh(manual = true) },
-                onPriceMode = viewModel::setPriceMode,
-            )
+            // 입력 중에는 결제 수단 줄도 접는다. 키보드 위 연산자 줄과 겹치면 글자가 비쳐 지저분해진다.
+            AnimatedVisibility(visible = !typing) {
+                Column {
+                    Spacer(Modifier.height(Space.m))
+                    PaymentSegments(state = state, onPick = viewModel::setPriceMode)
+                    Spacer(Modifier.height(Space.l))
+                    RateRow(state = state, now = now, onRefresh = { viewModel.refresh(manual = true) })
+                    Spacer(Modifier.height(Space.m))
+                    ToolTiles(
+                        state = state,
+                        onTrend = {
+                            showTrend = true
+                            if (state.history.isEmpty()) viewModel.loadHistory()
+                        },
+                        onRefund = { showRefund = true },
+                        onTip = { showTip = true },
+                    )
+                    if (state.saved.isNotEmpty()) {
+                        Spacer(Modifier.height(Space.l))
+                        RecentSaved(state = state, onOpen = onOpenSaved)
+                    }
+                }
+            }
 
-            Spacer(Modifier.height(Space.m))
-            ToolRow(
-                refund = state.selected.taxRefund,
-                onTrend = {
-                    showTrend = true
-                    if (state.history.isEmpty()) viewModel.loadHistory()
-                },
-                onTip = { showTip = true },
-                onRefund = { showRefund = true },
-            )
-
-            Spacer(Modifier.height(Space.xl))
-            Spacer(Modifier.height(imeBottom + if (operators) OPERATOR_BAR_HEIGHT else 0.dp))
+            Spacer(Modifier.height(NavClearance))
+            Spacer(Modifier.height(imeBottom + if (typing) OPERATOR_BAR_HEIGHT else 0.dp))
         }
-        if (operators) {
+        if (typing) {
             OperatorBar(
                 modifier = Modifier.align(Alignment.BottomCenter).imePadding(),
                 onOperator = viewModel::appendOperator,
+                onSave = { askMemo = true },
             )
         }
     }
@@ -267,42 +288,24 @@ private fun Header(
     onShare: () -> Unit,
     onVersionClick: () -> Unit,
 ) {
-    val dark = isDark()
-    val brand = Brush.linearGradient(
-        if (dark) {
-            listOf(Color(0xFF7BE6D0), Color(0xFF17A08C))
-        } else {
-            listOf(Color(0xFF17A08C), Color(0xFF05433A))
-        }
-    )
-
     Row(
-        modifier = Modifier.fillMaxWidth().height(74.dp),
+        modifier = Modifier.fillMaxWidth().height(72.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 아이콘과 같은 마크를 헤더에도 둔다. 앱을 열 때마다 브랜드가 먼저 눈에 들어온다.
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(Radius.pillShape)
-                .background(brand),
-            contentAlignment = Alignment.Center,
-        ) {
-            WonMark(Color.White, sizeDp = 21)
-        }
-
+        // 런처 아이콘과 같은 마크(입체 C안). 앱을 열 때마다 브랜드가 먼저 눈에 들어온다.
+        WonTile(sizeDp = 40)
         Spacer(Modifier.width(Space.m))
-
-        Column {
+        Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "여긴얼마?",
                     style = TextStyle(
-                        brush = brand,
-                        fontSize = 23.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.9).sp,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.7).sp,
                     ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
                 )
                 Spacer(Modifier.width(Space.s))
                 Box {
@@ -311,11 +314,11 @@ private fun Header(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                         modifier = Modifier
-                            .clip(Radius.badgeShape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .glass(Radius.badgeShape)
                             .clickable(onClick = onVersionClick)
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                     if (hasUpdate) {
                         Box(
@@ -333,85 +336,75 @@ private fun Header(
                 text = "지금 이 가격, 원화로",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.1.sp,
+                maxLines = 1,
             )
         }
-
-        Spacer(Modifier.weight(1f))
-
-        RoundAction(onClick = onShare) {
+        GlassIconButton(description = "결과 공유", onClick = onShare) {
             Icon(
                 imageVector = Icons.Filled.Share,
-                contentDescription = "결과 공유",
-                modifier = Modifier.size(17.dp),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
 
+/** 헤더·환율 줄 오른쪽에 두는 44dp 글래스 버튼. */
+@Composable
+private fun GlassIconButton(
+    description: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .glass(RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
 // ---------------------------------------------------------------- 통화 선택
 
 @Composable
 private fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
-    // 선택된 칸은 항상 트랙보다 "떠 보여야" 한다. 다크에서는 밝은 쪽이 위로 온다.
-    val dark = isDark()
-    val track = if (dark) {
-        MaterialTheme.colorScheme.surfaceContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-    val activeBg = if (dark) {
-        MaterialTheme.colorScheme.surfaceContainerHighest
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(Radius.cardShape)
-            .background(track)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
+    SlidingSegments(count = Currency.entries.size, selected = Currency.entries.indexOf(selected)) {
         Currency.entries.forEach { currency ->
             val on = currency == selected
-            Row(
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(Radius.pillShape)
-                    .background(if (on) activeBg else Color.Transparent)
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { onSelect(currency) }
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+                    .semantics { contentDescription = currency.koreanName },
+                contentAlignment = Alignment.Center,
             ) {
-                Text(currency.flag, fontSize = Num.flag)
-                Spacer(Modifier.width(Space.s))
                 Text(
                     text = currency.code,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                    color = if (on) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
                 )
             }
         }
     }
 }
 
-// ---------------------------------------------------------------- 환산 (주인공)
+// ---------------------------------------------------------------- 가격표 (주인공)
 
 /**
- * 입력 · 스왑 · 결과를 한 카드로 묶는다.
- * 이전에는 카드 세 개가 따로 떠 있어서 화면의 주인공이 없었다.
- * 그림자는 이 카드에만 준다 — 나머지 깊이는 배경 명도 차로 만든다.
+ * 입력 · 스왑 · 결과 · 빠른 금액을 가격표 하나로 묶는다.
+ * 위 칸(입력)과 아래 칸(결과) 사이를 점선과 양옆 홈으로 끊어 가격표처럼 보이게 하고,
+ * 빠른 금액은 계산하는 자리 바로 밑 칸에 붙인다.
  */
 @Composable
-private fun ConvertCard(
+private fun PriceTag(
     state: UiState,
     resultText: String,
     focusRequester: FocusRequester,
@@ -420,136 +413,358 @@ private fun ConvertCard(
     onSwap: () -> Unit,
     onCopy: () -> Unit,
     onSave: () -> Unit,
+    onAdd: (Long) -> Unit,
+    onClear: () -> Unit,
 ) {
+    val dark = isDark()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val surface = MaterialTheme.colorScheme.surface
+    val mintTop = if (dark) Hero.darkTop else Color(0xFFDDF5EC)
+    val mintBottom = if (dark) Hero.darkBottom else Color(0xFFCFEFE4)
+    val ink = MaterialTheme.colorScheme.onPrimaryContainer
+    val top = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    val bottom = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(Radius.cardShape)
-            .background(MaterialTheme.colorScheme.surface),
+            .shadow(
+                elevation = 14.dp,
+                shape = RoundedCornerShape(24.dp),
+                clip = false,
+                ambientColor = Color(0x330B3C32),
+                spotColor = Color(0x660B3C32),
+            ),
     ) {
-        // 입력
+        // 위 칸: 입력
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(top)
+                .background(surface)
                 .clickable { focusRequester.requestFocus() }
-                .padding(horizontal = Space.gutter, vertical = Space.l),
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 2.dp),
         ) {
-            // 식이면 오른쪽 통화 코드 자리에 계산값을 보여준다. 줄이 새로 생기지 않아 카드가 흔들리지 않는다.
-            val headerRight = if (state.isExpression) {
-                "= " + (state.amountOrNull?.let { format(it, state.fromDecimals) } ?: "—") +
-                    " " + state.fromCurrencyCode
-            } else {
-                state.fromCurrencyCode
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = state.fromLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = muted,
+                    maxLines = 1,
+                )
+                Spacer(Modifier.weight(1f))
+                // 식이면 계산값을 보여준다. 줄이 새로 생기지 않아 카드가 흔들리지 않는다.
+                if (state.isExpression) {
+                    Text(
+                        text = "= " + (state.amountOrNull?.let { format(it, state.fromDecimals) } ?: "—") +
+                            " " + state.fromCurrencyCode,
+                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = Num.FEATURES),
+                        color = muted,
+                        maxLines = 1,
+                    )
+                }
             }
-            CardHeader(state.fromFlag, state.fromLabel, headerRight, muted)
-            Spacer(Modifier.height(Space.s))
-            // 빠른 금액·연산자 칩으로 값이 바뀌면 커서를 끝으로 보낸다.
+            Spacer(Modifier.height(Space.xs))
+            // 빠른 금액·연산자로 값이 바뀌면 커서를 끝으로 보낸다.
             // 문자열만 넘기면 커서가 옛 위치에 남아 다음 입력이 중간에 끼어든다.
             var field by remember { mutableStateOf(TextFieldValue(state.input)) }
             if (field.text != state.input) {
                 field = TextFieldValue(state.input, TextRange(state.input.length))
             }
-            BasicTextField(
-                value = field,
-                onValueChange = {
-                    field = it
-                    onValueChange(it.text)
-                },
-                singleLine = true,
-                textStyle = Num.amount(34).copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                visualTransformation = ExpressionTransformation,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { onFocusChange(it.isFocused) },
-                decorationBox = { field ->
-                    if (state.input.isEmpty()) {
-                        Text("0", style = Num.amount(34).copy(color = muted.copy(alpha = 0.3f)))
-                    }
-                    field()
-                },
-            )
-        }
-
-        // 스왑 — 구분선이 버튼까지 이어져 두 영역의 경계 역할을 한다.
-        // 높이를 44dp로 확보해야 버튼이 측정 제약에 눌리지 않는다.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .padding(horizontal = Space.gutter),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HorizontalDivider(
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-            Spacer(Modifier.width(Space.l))
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .shadow(Elev.floating, CircleShape)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .clickable(onClick = onSwap),
-                contentAlignment = Alignment.Center,
-            ) {
-                SwapIcon(MaterialTheme.colorScheme.onPrimary, sizeDp = 17)
-            }
-        }
-
-        // 결과
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .clickable(onClick = onCopy)
-                .padding(horizontal = Space.gutter, vertical = Space.l),
-        ) {
-            val ink = MaterialTheme.colorScheme.onPrimaryContainer
-            // 원화 결과는 코드(KRW) 대신 "약 3만 7천원"으로 감을 준다. 만 원 미만은 코드 그대로.
-            val toRight = state.result
-                ?.takeIf { state.toCurrencyCode == "KRW" }
-                ?.let(::approxWon)
-                ?: state.toCurrencyCode
-            CardHeader(state.toFlag, state.toLabel, toRight, ink.copy(alpha = 0.66f))
-            Spacer(Modifier.height(Space.s))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = resultText,
-                    style = Num.amount(34).copy(color = ink),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    // 가중치를 숫자 쪽에만 준다. Spacer에도 weight를 주면 남은 폭이
-                    // 반씩 나뉘어 저장 버튼이 자릿수에 따라 좌우로 흔들린다.
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(Space.m))
-                Box(
+                BasicTextField(
+                    value = field,
+                    onValueChange = {
+                        field = it
+                        onValueChange(it.text)
+                    },
+                    singleLine = true,
+                    textStyle = Num.amount(34).copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    visualTransformation = ExpressionTransformation,
                     modifier = Modifier
-                        .clip(Radius.pillShape)
-                        .background(ink.copy(alpha = 0.1f))
-                        .clickable(onClick = onSave)
-                        .padding(horizontal = Space.m, vertical = Space.s),
-                ) {
+                        .weight(1f)
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { onFocusChange(it.isFocused) },
+                    decorationBox = { inner ->
+                        if (state.input.isEmpty()) {
+                            Text("0", style = Num.amount(34).copy(color = muted.copy(alpha = 0.3f)))
+                        }
+                        inner()
+                    },
+                )
+                if (!state.isExpression) {
+                    Spacer(Modifier.width(Space.s))
                     Text(
-                        text = "＋ 저장",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = ink.copy(alpha = 0.88f),
+                        text = state.fromCurrencyCode,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = muted,
+                        modifier = Modifier.padding(bottom = 8.dp),
                     )
                 }
             }
-            if (state.showHints) {
-                Spacer(Modifier.height(Space.s))
+        }
+
+        // 이음매: 점선 + 양옆 홈, 오른쪽에 방향 바꾸기
+        val swapTurn by animateFloatAsState(
+            targetValue = if (state.foreignToKrw) 0f else 180f,
+            animationSpec = tween(300),
+            label = "swap",
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(SeamShape(11.dp))
+                .seam(top = surface, bottom = SolidColor(mintTop), dash = MaterialTheme.colorScheme.outlineVariant, inset = 20.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 24.dp)
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(if (dark) TealGradient else InkGradient)
+                    .clickable(onClick = onSwap)
+                    .semantics { contentDescription = "방향 바꾸기" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.rotate(swapTurn)) { SwapIcon(Color.White, sizeDp = 17) }
+            }
+        }
+
+        // 아래 칸: 결과
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(mintTop, mintBottom)))
+                .clickable(onClick = onCopy)
+                .padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 14.dp),
+        ) {
+            Text(
+                text = if (state.foreignToKrw) "${state.toLabel} · ${state.priceMode.label}" else state.toLabel,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = ink.copy(alpha = 0.7f),
+                maxLines = 1,
+            )
+            // 자릿수가 많으면 한 줄에 들어가도록 글자를 줄인다.
+            val size = when {
+                resultText.length > 12 -> 32
+                resultText.length > 9 -> 38
+                else -> 44
+            }
+            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = Space.xs)) {
+                RollingNumber(
+                    text = resultText,
+                    style = Num.amount(size).copy(color = ink, fontWeight = FontWeight.Bold),
+                )
                 Text(
-                    text = "숫자를 탭하면 복사됩니다",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ink.copy(alpha = 0.5f),
+                    text = if (state.toCurrencyCode == "KRW") "원" else " ${state.toCurrencyCode}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ink,
+                    modifier = Modifier.padding(start = 2.dp, bottom = (size / 6).dp),
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = Space.s)) {
+                // 원화 결과는 "약 3만 7천원"으로 감을 준다. 만 원 미만이거나 외화면 복사 안내.
+                val approx = state.result?.takeIf { state.toCurrencyCode == "KRW" }?.let(::approxWon)
+                Text(
+                    text = approx ?: if (state.showHints) "숫자를 누르면 복사" else "",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (approx != null) FontWeight.Bold else FontWeight.Normal,
+                    color = if (approx != null) MaterialTheme.colorScheme.primary else ink.copy(alpha = 0.5f),
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                Row(
+                    modifier = Modifier
+                        .height(36.dp)
+                        .clip(Radius.pillShape)
+                        .background(TealGradient)
+                        .clickable(onClick = onSave)
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TagIcon(Color.White, sizeDp = 15)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "저장",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                    )
+                }
+            }
+        }
+
+        // 맨 아래 칸: 빠른 금액. 누를 때마다 더한다.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(bottom)
+                .background(surface)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            state.quickAmounts.take(4).forEach { value ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .clickable { onAdd(value) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "+" + format(value.toDouble(), 0),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = Num.FEATURES),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
+            val canClear = state.input.isNotEmpty()
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .clickable(enabled = canClear, onClick = onClear)
+                    .semantics { contentDescription = "입력 지우기" },
+                contentAlignment = Alignment.Center,
+            ) {
+                ClearIcon(muted.copy(alpha = if (canClear) 1f else 0.35f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClearIcon(tint: Color) {
+    Canvas(Modifier.size(14.dp)) {
+        val w = 1.8.dp.toPx()
+        drawLine(tint, Offset(0f, 0f), Offset(size.width, size.height), w, StrokeCap.Round)
+        drawLine(tint, Offset(size.width, 0f), Offset(0f, size.height), w, StrokeCap.Round)
+    }
+}
+
+// ---------------------------------------------------------------- 결제 수단
+
+/** 결제 수단 버튼 안에 그 수단으로 낼 원화를 같이 보여준다. 하나씩 눌러 보지 않아도 비교된다. */
+@Composable
+private fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
+    SlidingSegments(count = PriceMode.entries.size, selected = PriceMode.entries.indexOf(state.priceMode)) {
+        PriceMode.entries.forEach { mode ->
+            val on = mode == state.priceMode
+            val fee = mode.feePercent(state.selected)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onPick(mode) }
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = if (fee > 0) "${mode.shortLabel} +${format(fee, 2)}%" else mode.shortLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                state.krwFor(mode)?.let { won ->
+                    Text(
+                        text = format(won, 0),
+                        style = Num.amount(16).copy(letterSpacing = 0.sp),
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- 환율 줄
+
+@Composable
+private fun RateRow(state: UiState, now: Long, onRefresh: () -> Unit) {
+    val snapshot = state.snapshot
+    val change = state.change
+    val minutes = snapshot?.let { ((now - it.quotedAtMillis) / 60_000L).coerceAtLeast(0) } ?: 0L
+    val freshness = snapshot?.let { dotColor(it.source, minutes) } ?: Freshness.stale
+
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = state.rateLabel ?: "환율 없음",
+                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = Num.FEATURES),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                if (change != null && change.direction != 0 && state.priceMode == PriceMode.BASE) {
+                    Spacer(Modifier.width(Space.s))
+                    ChangePill(change, state.selected.quoteUnit)
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            if (snapshot == null) {
+                // 처음 설치한 뒤 오프라인이면 캐시도 없다.
+                Text(
+                    text = if (state.loading) "환율 받는 중" else "환율 수신 실패 · 네트워크 확인 필요",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (state.loading) MaterialTheme.colorScheme.onSurfaceVariant else Freshness.stale,
+                    maxLines = 1,
+                )
+            } else {
+                val (text, color) = statusText(
+                    snapshot = snapshot,
+                    minutes = minutes,
+                    unit = state.selected.quoteUnit,
+                    code = state.selected.code,
+                    outcome = state.outcome,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LiveDot(freshness, live = freshness == Freshness.fresh)
+                    Spacer(Modifier.width(6.dp))
+                    Crossfade(targetState = text to color, label = "status") { (t, c) ->
+                        Text(
+                            text = t,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = c,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(Space.s))
+        val confirmed = state.outcome?.let { !it.throttled && it.after != null && !it.changed } == true
+        GlassIconButton(description = "환율 새로고침", onClick = onRefresh, enabled = !state.loading) {
+            if (state.loading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = freshness)
+            } else {
+                Icon(
+                    imageVector = if (confirmed) Icons.Filled.Check else Icons.Filled.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(19.dp),
+                    tint = if (snapshot == null || freshness != Freshness.fresh) freshness else MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -557,66 +772,248 @@ private fun ConvertCard(
 }
 
 @Composable
-private fun QuickAmounts(
-    values: List<Long>,
-    canClear: Boolean,
-    onAdd: (Long) -> Unit,
-    onClear: () -> Unit,
+private fun ChangePill(change: Change, unit: Int) {
+    val rising = change.direction > 0
+    val dark = isDark()
+    val tint = when {
+        rising && dark -> Trend.risingDark
+        rising -> Trend.rising
+        dark -> Trend.fallingDark
+        else -> Trend.falling
+    }
+    Text(
+        text = "${if (rising) "▲" else "▼"} ${formatFixed(change.amount * unit, 2)}",
+        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = Num.FEATURES),
+        fontWeight = FontWeight.Bold,
+        color = tint,
+        maxLines = 1,
+        softWrap = false,
+        modifier = Modifier
+            .clip(Radius.pillShape)
+            .background(tint.copy(alpha = if (dark) 0.16f else 0.10f))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    )
+}
+
+// ---------------------------------------------------------------- 도구
+
+/** 도구 세 칸. 들어가 보기 전에 답(추이·환급액·팁 관행)이 먼저 보이게 값을 함께 적는다. */
+@Composable
+private fun ToolTiles(
+    state: UiState,
+    onTrend: () -> Unit,
+    onRefund: () -> Unit,
+    onTip: () -> Unit,
 ) {
-    // 초기화는 스크롤 영역 밖 오른쪽에 고정한다. 칩 줄 끝에 붙이면 통화마다
-    // 칩 개수·폭이 달라 위치가 바뀌고, 화면 밖으로 밀려나기도 한다.
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        val chips = rememberScrollState()
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .edgeFade(chips)
-                .horizontalScroll(chips),
-            horizontalArrangement = Arrangement.spacedBy(Space.s),
+    val dark = isDark()
+    val ink = MaterialTheme.colorScheme.onSurface
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+
+    val points = state.history.map { it.rate }
+    val summary = state.history.takeIf { it.size >= 2 }?.summarize()
+    val up = (summary?.changePercent ?: 0.0) >= 0
+    val trendColor = when {
+        up && dark -> Trend.risingDark
+        up -> Trend.rising
+        dark -> Trend.fallingDark
+        else -> Trend.falling
+    }
+    val trendValue = when {
+        summary != null -> "${state.historyRange.label} ${if (up) "▲" else "▼"}${formatFixed(kotlin.math.abs(summary.changePercent), 2)}%"
+        state.historyLoading -> "불러오는 중"
+        else -> "그래프 보기"
+    }
+
+    val refund = state.selected.taxRefund
+    val price = state.foreignAmount
+    val refundValue = when {
+        refund == null -> "제도 없음"
+        price > 0 -> "예상 ${format(refund.estimatedRefund(price), state.selected.decimals)} ${state.selected.code}"
+        else -> "부가세 ${format(refund.vatPercent, 0)}%"
+    }
+
+    val tip = state.selected.tip.suggested
+    val tipValue = if (tip.firstOrNull() == 0) "팁 문화 없음" else "${tip.first()}~${tip.last()}%"
+
+    Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+        ToolTile(
+            label = "환율 추이",
+            value = trendValue,
+            valueColor = if (summary != null) trendColor else muted,
+            onClick = onTrend,
+            modifier = Modifier.weight(1f),
         ) {
-            values.forEach { value ->
-                // "+"를 붙여 누를 때마다 더해진다는 것을 보여준다.
-                Pill(text = "+" + format(value.toDouble(), 0), selected = false) { onAdd(value) }
+            if (points.size >= 2) {
+                Sparkline(points, trendColor, Modifier.fillMaxWidth().height(26.dp))
+            } else {
+                TrendLineIcon(ink)
             }
         }
-        Spacer(Modifier.width(Space.s))
+        ToolTile(
+            label = "세금 환급",
+            value = refundValue,
+            valueColor = if (refund != null) MaterialTheme.colorScheme.primary else muted,
+            onClick = onRefund,
+            enabled = refund != null,
+            modifier = Modifier.weight(1f),
+        ) { ReceiptIcon(ink, sizeDp = 26) }
+        ToolTile(
+            label = "팁",
+            value = tipValue,
+            valueColor = muted,
+            onClick = onTip,
+            modifier = Modifier.weight(1f),
+        ) { CoinIcon(ink, sizeDp = 26) }
+    }
+}
+
+@Composable
+private fun ToolTile(
+    label: String,
+    value: String,
+    valueColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    visual: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.height(26.dp), contentAlignment = Alignment.CenterStart) { visual() }
         Text(
-            text = "초기화",
-            style = MaterialTheme.typography.labelMedium,
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = if (canClear) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-            },
-            modifier = Modifier
-                .clip(Radius.pillShape)
-                .clickable(enabled = canClear, onClick = onClear)
-                .padding(horizontal = Space.m, vertical = Space.s),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = Num.FEATURES),
+            fontWeight = FontWeight.SemiBold,
+            color = valueColor,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
+@Composable
+private fun TrendLineIcon(tint: Color) {
+    Canvas(Modifier.size(26.dp)) {
+        val k = size.minDimension / 24f
+        val s = Stroke(width = 1.7f * k, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        drawLine(tint, Offset(4f * k, 19f * k), Offset(20f * k, 19f * k), 1.7f * k, StrokeCap.Round)
+        drawPath(
+            Path().apply {
+                moveTo(5f * k, 15f * k); lineTo(9.5f * k, 10.5f * k); lineTo(13f * k, 13.5f * k); lineTo(19f * k, 7f * k)
+            },
+            tint,
+            style = s,
+        )
+    }
+}
+
+// ---------------------------------------------------------------- 최근 저장
+
+@Composable
+private fun RecentSaved(state: UiState, onOpen: () -> Unit) {
+    Column {
+        Text(
+            text = "최근 저장",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = Space.s),
+        )
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surface),
+        ) {
+            val recent = state.saved.take(2)
+            recent.forEachIndexed { i, item ->
+                val won = item.krwAt(state.snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpen)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = item.memo,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(Space.m))
+                    Text(
+                        text = "${format(won, 0)}원",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = Num.FEATURES),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                    )
+                }
+                if (i < recent.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- 연산자 줄
+
 private val OPERATOR_CHIPS = listOf('+' to "+", '-' to "−", '*' to "×", '/' to "÷")
 
-private val OPERATOR_BAR_HEIGHT = 52.dp
+/** 연산자 줄 전체 높이(키 44 + 안쪽 여백 + 바깥 여백). 스크롤 끝 여백 계산에 쓴다. */
+private val OPERATOR_BAR_HEIGHT = 68.dp
 
 /**
- * 시스템 숫자 키보드에는 연산자가 없다. 키보드가 떠 있는 동안 그 바로 위에 붙는 연산자 줄.
- * 숫자 키에서 손가락이 가장 덜 움직이는 자리이고, 빠른 금액 칩은 바뀌지 않고 그대로 남는다.
+ * 시스템 숫자 키보드에는 연산자가 없다. 키보드가 떠 있는 동안 그 바로 위에 붙는 글래스 연산자 줄.
+ * 끝에 저장을 두어 계산을 마치면 키보드를 닫지 않고 바로 저장한다.
  */
 @Composable
-private fun OperatorBar(modifier: Modifier, onOperator: (Char) -> Unit) {
+private fun OperatorBar(modifier: Modifier, onOperator: (Char) -> Unit, onSave: () -> Unit) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(OPERATOR_BAR_HEIGHT)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 6.dp, vertical = 5.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .glass(RoundedCornerShape(20.dp))
+            .padding(6.dp)
+            .height(44.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         OPERATOR_CHIPS.forEach { (op, label) ->
             OperatorKey(op = op, label = label, modifier = Modifier.weight(1f)) { onOperator(op) }
+        }
+        Row(
+            modifier = Modifier
+                .weight(1.3f)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(14.dp))
+                .background(TealGradient)
+                .clickable(onClick = onSave),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TagIcon(Color.White, sizeDp = 15)
+            Spacer(Modifier.width(5.dp))
+            Text("저장", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
 }
@@ -631,8 +1028,8 @@ private fun OperatorKey(op: Char, label: String, modifier: Modifier, onClick: ()
     Box(
         modifier = modifier
             .fillMaxHeight()
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClickLabel = label, onClick = onClick)
             .semantics { contentDescription = OPERATOR_NAMES.getValue(op) },
         contentAlignment = Alignment.Center,
@@ -666,202 +1063,6 @@ private fun OperatorKey(op: Char, label: String, modifier: Modifier, onClick: ()
 
 private val OPERATOR_NAMES = mapOf('+' to "더하기", '-' to "빼기", '*' to "곱하기", '/' to "나누기")
 
-/**
- * 가로 스크롤 줄의 잘린 쪽 끝을 흐리게 한다. 칩이 반쯤 잘려 보이는 대신
- * "옆으로 더 있다"는 신호가 된다. 끝까지 밀면 그쪽 페이드는 사라진다.
- */
-private fun Modifier.edgeFade(state: ScrollState, width: Dp = 28.dp): Modifier = this
-    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-    .drawWithContent {
-        drawContent()
-        val w = width.toPx()
-        if (state.canScrollForward) {
-            drawRect(
-                brush = Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - w, endX = size.width),
-                topLeft = Offset(size.width - w, 0f),
-                size = Size(w, size.height),
-                blendMode = BlendMode.DstIn,
-            )
-        }
-        if (state.canScrollBackward) {
-            drawRect(
-                brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = 0f, endX = w),
-                size = Size(w, size.height),
-                blendMode = BlendMode.DstIn,
-            )
-        }
-    }
-
-// ---------------------------------------------------------------- 환율 (조연)
-
-/**
- * 환율·등락·출처·결제 수단·고지를 한 카드에 담는다.
- * 수수료 pill이 카드 밖에 떠 있으면 무엇을 조작하는 컨트롤인지 알 수 없다.
- */
-@Composable
-private fun RateCard(
-    state: UiState,
-    now: Long,
-    onRefresh: () -> Unit,
-    onPriceMode: (PriceMode) -> Unit,
-) {
-    val snapshot = state.snapshot
-    val change = state.change
-
-    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = state.rateLabel ?: "환율 없음",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (change != null && change.direction != 0 && state.priceMode == PriceMode.BASE) {
-                Spacer(Modifier.weight(1f))
-                TrendBadge(change, state.selected.quoteUnit)
-            }
-        }
-
-        if (snapshot == null) {
-            // 처음 설치한 뒤 오프라인이면 캐시도 없다. 출처 줄이 없으니 다시 시도할 길을 여기서 연다.
-            Spacer(Modifier.height(Space.s))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (state.loading) {
-                        "환율을 받아오고 있습니다"
-                    } else {
-                        state.error ?: "환율을 받아오지 못했습니다. 네트워크를 확인해 주세요."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (state.loading) MaterialTheme.colorScheme.onSurfaceVariant else Freshness.stale,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(Space.s))
-                StatusRefreshButton(
-                    color = Freshness.stale,
-                    loading = state.loading,
-                    confirmed = false,
-                    description = "환율 다시 받기",
-                    onClick = onRefresh,
-                )
-            }
-        }
-
-        if (snapshot != null) {
-            val minutes = ((now - snapshot.quotedAtMillis) / 60_000L).coerceAtLeast(0)
-            // 등락 배지와 새로고침 버튼이 오른쪽 끝에 위아래로 붙지 않도록 한 칸 띄운다.
-            Spacer(Modifier.height(Space.s))
-            StatusLine(
-                snapshot = snapshot,
-                minutes = minutes,
-                unit = state.selected.quoteUnit,
-                code = state.selected.code,
-                outcome = state.outcome,
-                loading = state.loading,
-                onRefresh = onRefresh,
-            )
-        }
-
-        Spacer(Modifier.height(Space.l))
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            PriceMode.entries.forEach { mode ->
-                Pill(
-                    text = mode.label,
-                    selected = mode == state.priceMode,
-                    modifier = Modifier.weight(1f),
-                ) { onPriceMode(mode) }
-            }
-        }
-        // 칩을 하나씩 눌러 보지 않아도 결제 수단별 금액을 한눈에 비교한다. 금액을 넣었을 때만.
-        if (state.krwFor(PriceMode.BASE) != null) {
-            Spacer(Modifier.height(Space.xs))
-            Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                PriceMode.entries.forEach { mode ->
-                    val on = mode == state.priceMode
-                    Text(
-                        text = "${format(state.krwFor(mode) ?: 0.0, 0)}원",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (on) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(Space.m))
-        Text(
-            text = when (state.priceMode) {
-                PriceMode.BASE ->
-                    "매매기준율입니다. 실제 환전 시에는 은행 수수료가 더해집니다."
-                PriceMode.CARD ->
-                    "매매기준율 ${formatFixed((state.baseRate ?: 0.0) * state.selected.quoteUnit, 2)}원에 " +
-                        "국제브랜드와 국내 카드사 수수료 ${formatFixed(state.feePercent, 2)}%를 더한 추정입니다."
-                PriceMode.CASH ->
-                    "매매기준율 ${formatFixed((state.baseRate ?: 0.0) * state.selected.quoteUnit, 2)}원에 " +
-                        "은행 현찰 스프레드 ${formatFixed(state.feePercent, 2)}%를 더한 추정입니다."
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-        )
-    }
-}
-
-// ---------------------------------------------------------------- 더 보기
-
-/** 자주 쓰지 않는 것은 화면 맨 아래 한 줄로 모아 시트로 연다. */
-@Composable
-private fun ToolRow(
-    refund: TaxRefund?,
-    onTrend: () -> Unit,
-    onTip: () -> Unit,
-    onRefund: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(Space.s),
-    ) {
-        ToolChip("📈", "환율 추이", onTrend, Modifier.weight(1f))
-        ToolChip("💵", "팁 계산", onTip, Modifier.weight(1f))
-        if (refund != null) {
-            ToolChip(refund.countryFlag, "세금 환급", onRefund, Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun TrendBadge(change: Change, unit: Int) {
-    val rising = change.direction > 0
-    val dark = isDark()
-    val tint = when {
-        rising && dark -> Trend.risingDark
-        rising -> Trend.rising
-        dark -> Trend.fallingDark
-        else -> Trend.falling
-    }
-    Row(
-        modifier = Modifier
-            .clip(Radius.badgeShape)
-            .background(tint.copy(alpha = if (dark) 0.16f else 0.10f))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = if (rising) "▲" else "▼", fontSize = 9.sp, color = tint)
-        Spacer(Modifier.width(Space.xs))
-        Text(
-            text = "${formatFixed(change.amount * unit, 2)} (${formatFixed(change.ratio, 2)}%)",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = tint,
-        )
-    }
-}
-
 // ---------------------------------------------------------------- 오프라인 / 업데이트
 
 /** 오프라인 상태는 아래쪽 카드에만 두면 놓치기 쉬워서 맨 위에도 알린다. */
@@ -878,7 +1079,7 @@ private fun OfflineBanner() {
         Dot(MaterialTheme.colorScheme.error, size = 7)
         Spacer(Modifier.width(Space.s))
         Text(
-            text = "오프라인입니다. 마지막으로 받아둔 환율로 계산하고 있습니다.",
+            text = "오프라인 · 마지막으로 받은 환율로 계산 중",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
@@ -939,8 +1140,8 @@ private fun SaveDialog(state: UiState, onDismiss: () -> Unit, onConfirm: (String
                     value = memo,
                     onValueChange = { if (it.length <= 30) memo = it },
                     singleLine = true,
-                    label = { Text("무엇인가요?") },
-                    placeholder = { Text("예: 가죽가방") },
+                    label = { Text("항목 이름") },
+                    placeholder = { Text("예: 가죽 가방") },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

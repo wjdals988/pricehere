@@ -33,7 +33,7 @@
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:gravity="center_vertical"
         android:orientation="vertical" android:background="@drawable/w_hero"
-        android:padding="11dp" android:layout_marginTop="7dp">
+        android:padding="12dp" android:layout_marginTop="8dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:gravity="center_vertical">
             <TextView android:id="@+id/w_amount" android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -53,28 +53,34 @@
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:paddingTop="7dp">
         <TextView android:id="@+id/w_chip_0" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="6dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="11sp" android:textColor="@color/w_text" android:maxLines="1" />
+            android:layout_weight="1" android:gravity="center" android:paddingTop="9dp" android:paddingBottom="9dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_amount_chip"
+            android:textSize="13sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:textColor="@color/w_text" android:maxLines="1" />
         <TextView android:id="@+id/w_chip_1" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="6dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="11sp" android:textColor="@color/w_text" android:maxLines="1" />
+            android:layout_weight="1" android:gravity="center" android:paddingTop="9dp" android:paddingBottom="9dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_amount_chip"
+            android:textSize="13sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:textColor="@color/w_text" android:maxLines="1" />
         <TextView android:id="@+id/w_chip_2" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="6dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="11sp" android:textColor="@color/w_text" android:maxLines="1" />
+            android:layout_weight="1" android:gravity="center" android:paddingTop="9dp" android:paddingBottom="9dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_amount_chip"
+            android:textSize="13sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:textColor="@color/w_text" android:maxLines="1" />
         <TextView android:id="@+id/w_chip_3" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="6dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="11sp" android:textColor="@color/w_text" android:maxLines="1" />
+            android:layout_weight="1" android:gravity="center" android:paddingTop="9dp" android:paddingBottom="9dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_amount_chip"
+            android:textSize="13sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:textColor="@color/w_text" android:maxLines="1" />
         <TextView android:id="@+id/w_chip_4" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="6dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="11sp" android:textColor="@color/w_text" android:maxLines="1" />
+            android:layout_weight="1" android:gravity="center" android:paddingTop="9dp" android:paddingBottom="9dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_amount_chip"
+            android:textSize="13sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:textColor="@color/w_text" android:maxLines="1" />
         <TextView android:id="@+id/w_chip_5" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:padding="6dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="11sp" android:textColor="@color/w_text" android:maxLines="1" />
+            android:layout_weight="1" android:gravity="center" android:paddingTop="9dp" android:paddingBottom="9dp"
+            android:layout_marginEnd="4dp" android:background="@drawable/w_amount_chip"
+            android:textSize="13sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:textColor="@color/w_text" android:maxLines="1" />
     </LinearLayout>
 </LinearLayout>

@@ -8,25 +8,49 @@
   바 사이 빈 간격 5.1유닛은 48dp에서 약 3.4px라 두 줄이 붙지 않는다.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!-- v2.7 C안: ₩ 아래로 2유닛 내린 그림자를 깔아 마크가 판에서 살짝 떠 보이게 한다. -->
+    <group android:translateY="2">
+        <path
+            android:pathData="M36.2,37 L45.1,72.7 L54,44.6 L62.9,72.7 L71.8,37"
+            android:strokeColor="#5905433A"
+            android:strokeWidth="7.6"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M32.8,52.3 L75.2,52.3 M32.8,62.5 L75.2,62.5"
+            android:strokeColor="#5905433A"
+            android:strokeWidth="5.1"
+            android:strokeLineCap="round" />
+    </group>
+
+    <!-- 마크는 위 흰색에서 아래 옅은 민트로 내려가 빛을 받는 면처럼 보인다. -->
     <path
         android:pathData="M36.2,37 L45.1,72.7 L54,44.6 L62.9,72.7 L71.8,37"
-        android:strokeColor="#FFFFFFFF"
         android:strokeWidth="7.6"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="54" android:startY="34" android:endX="54" android:endY="76">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="1.0" android:color="#FFD3F3EA" />
+            </gradient>
+        </aapt:attr>
+    </path>
     <path
-        android:pathData="M32.8,52.3 L75.2,52.3"
-        android:strokeColor="#FFFFFFFF"
+        android:pathData="M32.8,52.3 L75.2,52.3 M32.8,62.5 L75.2,62.5"
         android:strokeWidth="5.1"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M32.8,62.5 L75.2,62.5"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="5.1"
-        android:strokeLineCap="round" />
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="54" android:startY="34" android:endX="54" android:endY="76">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="1.0" android:color="#FFD3F3EA" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

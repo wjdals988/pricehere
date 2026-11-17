@@ -441,19 +441,7 @@ fun StatusLine(
 ) {
     val freshness = dotColor(snapshot.source, minutes)
     val stale = freshness == Freshness.stale
-    val base = "${snapshot.source.short} · " +
-        "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 (${elapsed(minutes)})"
-    val (text, color) = when {
-        outcome == null -> base to
-            if (stale) freshness else MaterialTheme.colorScheme.onSurfaceVariant
-        outcome.throttled ->
-            "방금 확인했습니다 · 고시는 1~2분마다 바뀝니다" to MaterialTheme.colorScheme.onSurfaceVariant
-        outcome.changed ->
-            "갱신됨 · $code ${formatFixed((outcome.before ?: 0.0) * unit, 2)} → ${formatFixed((outcome.after ?: 0.0) * unit, 2)}원" to
-                MaterialTheme.colorScheme.primary
-        outcome.after != null -> "변동 없음 · 최신 상태입니다" to MaterialTheme.colorScheme.onSurfaceVariant
-        else -> base to MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val (text, color) = statusText(snapshot, minutes, unit, code, outcome)
     val confirmed = outcome != null && !outcome.throttled && outcome.after != null && !outcome.changed
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -485,6 +473,33 @@ fun StatusLine(
             description = "환율 새로고침, 현재 $state",
             onClick = onRefresh,
         )
+    }
+}
+
+/**
+ * 출처·고시 시각 문구와 그 색. 새로고침 직후 몇 초간은 결과(갱신·변동 없음)를 대신 보여준다.
+ * 환산 화면의 환율 줄과 저장 화면의 상태 줄이 같은 문구를 쓴다.
+ */
+@Composable
+fun statusText(
+    snapshot: Snapshot,
+    minutes: Long,
+    unit: Int,
+    code: String,
+    outcome: RefreshOutcome?,
+): Pair<String, Color> {
+    val freshness = dotColor(snapshot.source, minutes)
+    val base = "${snapshot.source.short} " +
+        "${CLOCK.format(Instant.ofEpochMilli(snapshot.quotedAtMillis))} 고시 · ${elapsed(minutes)}"
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    return when {
+        outcome == null -> base to if (freshness == Freshness.stale) freshness else muted
+        outcome.throttled -> "방금 갱신 · 고시 간격 1~2분" to muted
+        outcome.changed ->
+            "갱신 · $code ${formatFixed((outcome.before ?: 0.0) * unit, 2)} → ${formatFixed((outcome.after ?: 0.0) * unit, 2)}원" to
+                MaterialTheme.colorScheme.primary
+        outcome.after != null -> "변동 없음 · 최신 상태" to muted
+        else -> base to muted
     }
 }
 

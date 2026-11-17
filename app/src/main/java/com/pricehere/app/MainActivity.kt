@@ -8,18 +8,23 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -107,12 +112,14 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
         if (state.externalTick > 0) tab = Tab.HOME
     }
 
+    // 키보드가 떠 있으면 탭 바를 숨긴다. 연산자 줄이 그 자리에 붙는다.
+    val imeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = { BottomTabs(tab, state.saved.size, state.hasUpdate) { tab = it } },
+        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = NavClearance - 16.dp)) },
     ) { inset ->
-        // consume 해 두면 홈 화면의 imePadding 이 하단 탭 높이를 빼고 키보드 위에 딱 붙는다.
+        // consume 해 두면 홈 화면의 imePadding 이 시스템 내비게이션 높이를 빼고 키보드 위에 딱 붙는다.
         Box(Modifier.fillMaxSize().padding(inset).consumeWindowInsets(inset)) {
             when (tab) {
                 Tab.HOME -> ConverterScreen(
@@ -122,6 +129,7 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
                         openVersion = true
                         tab = Tab.INFO
                     },
+                    onOpenSaved = { tab = Tab.SAVED },
                 )
 
                 Tab.SAVED -> SavedScreen(viewModel, state, snackbar)
@@ -132,84 +140,21 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
                     onVersionOpened = { openVersion = false },
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun BottomTabs(
-    current: Tab,
-    savedCount: Int,
-    hasUpdate: Boolean,
-    onSelect: (Tab) -> Unit,
-) {
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
-    ) {
-        Tab.entries.forEach { tab ->
-            val selected = tab == current
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onSelect(tab) },
-                icon = {
-                    when (tab) {
-                        Tab.HOME -> SwapIcon(
-                            if (selected) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            sizeDp = 19,
-                        )
-
-                        Tab.SAVED -> TagIcon(
-                            if (selected) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-
-                        Tab.INFO -> Box {
-                            InfoIcon(
-                                if (selected) {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
-                            if (hasUpdate) {
-                                Box(
-                                    Modifier
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 3.dp, y = (-2).dp)
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(Trend.rising)
-                                )
-                            }
-                        }
-                    }
-                },
-                label = {
-                    Text(
-                        text = if (tab == Tab.SAVED && savedCount > 0) {
-                            "${tab.label} $savedCount"
-                        } else {
-                            tab.label
-                        },
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            )
+            // 떠 있는 글래스 탭 바. 내용이 그 뒤로 비쳐 지나간다.
+            AnimatedVisibility(
+                visible = !imeVisible,
+                enter = fadeIn() + slideInVertically { it },
+                exit = fadeOut() + slideOutVertically { it },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                GlassTabBar(
+                    current = tab,
+                    savedCount = state.saved.size,
+                    hasUpdate = state.hasUpdate,
+                    onSelect = { tab = it },
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                )
+            }
         }
     }
 }

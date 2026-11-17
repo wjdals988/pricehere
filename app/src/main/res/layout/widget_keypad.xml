@@ -5,92 +5,59 @@
     android:orientation="vertical" android:background="@drawable/w_bg"
     android:padding="8dp">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:gravity="center_vertical">
-        <TextView android:id="@+id/w_cur_usd" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
-            android:text="USD" android:maxLines="1" />
-        <TextView android:id="@+id/w_cur_eur" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
-            android:text="EUR" android:maxLines="1" />
-        <TextView android:id="@+id/w_cur_jpy" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
-            android:text="JPY" android:maxLines="1" />
-        <TextView android:id="@+id/w_cur_czk" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="center" android:paddingTop="7dp" android:paddingBottom="7dp"
-            android:layout_marginEnd="4dp" android:background="@drawable/w_chip"
-            android:textSize="13sp" android:textStyle="bold" android:textColor="@color/w_muted"
-            android:text="CZK" android:maxLines="1" />
-        <ImageView android:id="@+id/w_refresh" android:layout_width="22dp" android:layout_height="22dp"
-            android:src="@drawable/w_refresh" android:contentDescription="새로고침" />
-    </LinearLayout>
+    <!--
+      작은 위젯(3칸)은 높이가 빠듯해서 통화 칩 줄을 뺐다. 통화는 오른쪽 아래 "통화" 키로 순환하고,
+      표시 줄 왼쪽에 지금 통화를 둔다. 표시 줄을 누르면 식과 통화를 들고 앱이 열린다.
+    -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:id="@+id/w_display"
-        android:orientation="vertical" android:background="@drawable/w_hero"
-        android:padding="7dp" android:layout_marginTop="6dp">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:gravity="center_vertical">
-            <!-- 식이 길어지면 앞쪽을 생략한다. 방금 누른 끝부분이 보여야 하고,
-                 결과 금액을 밀어내지 않도록 폭 상한을 둔다. start 생략은 singleLine에서만 동작한다. -->
-            <TextView android:id="@+id/w_amount" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:maxWidth="150dp"
-                android:textSize="17sp" android:textStyle="bold" android:textColor="@color/w_text"
-                android:singleLine="true" android:ellipsize="start" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="→" android:textSize="15sp" android:textColor="@color/w_muted"
-                android:paddingStart="9dp" android:paddingEnd="9dp" />
-            <TextView android:id="@+id/w_result" android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:textSize="22sp" android:textStyle="bold"
-                android:textColor="@color/w_text" android:maxLines="1" android:ellipsize="end" />
-        </LinearLayout>
-        <TextView android:id="@+id/w_rate" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:paddingTop="4dp" android:textSize="11sp" android:textColor="@color/w_muted"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp">
+        <TextView android:id="@+id/w_cur_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="14sp" android:textStyle="bold" android:textColor="@color/w_text"
             android:maxLines="1" />
+        <!-- 식이 길어지면 앞쪽을 생략한다. 방금 누른 끝부분이 보여야 한다. start 생략은 singleLine에서만 동작한다. -->
+        <TextView android:id="@+id/w_amount" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:gravity="end" android:paddingStart="8dp" android:paddingEnd="8dp"
+            android:textSize="14sp" android:textColor="@color/w_muted" android:fontFeatureSettings="tnum"
+            android:singleLine="true" android:ellipsize="start" />
+        <TextView android:id="@+id/w_result" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="24sp" android:textStyle="bold" android:fontFeatureSettings="tnum"
+            android:textColor="@color/w_text" android:maxLines="1" />
     </LinearLayout>
     <!--
-      작은 위젯(3칸): 5열 x 4행. 행을 늘리면 키가 48dp 아래로 줄어 행 수는 그대로 둔다.
-      숫자 3열 · 연산자 1열 · 기능 1열. 앱은 표시 영역을 눌러 연다(열기 키 없음).
-      기능 열은 C와 ⌫가 2칸씩. C는 +에서 먼 위쪽에 두어 잘못 눌러 식을 날리는 일을 줄인다.
-      2칸짜리 키가 있는 블록은 높이를 4dp(행 간격) + 2행분으로 잡아야 다른 행과 키 높이가 같아진다.
+      5열 x 4행. 행마다 같은 높이라 블록 없이 행만 쌓는다.
+        7 8 9 ÷ C
+        4 5 6 × ⌫
+        1 2 3 − 00
+        0(2칸) . + 통화
     -->
-    <LinearLayout style="@style/WKeyBlock">
-        <LinearLayout style="@style/WKeyBlockLeft" android:layout_weight="4" android:layout_width="12dp">
-            <LinearLayout style="@style/WKeyBlockRow">
-                <TextView android:id="@+id/k7" style="@style/WKey.Digit" android:text="7" />
-                <TextView android:id="@+id/k8" style="@style/WKey.Digit" android:text="8" />
-                <TextView android:id="@+id/k9" style="@style/WKey.Digit" android:text="9" />
-                <TextView android:id="@+id/kdiv" style="@style/WKey.Op.Last" android:text="÷" />
-            </LinearLayout>
-            <LinearLayout style="@style/WKeyBlockRow" android:layout_marginTop="4dp">
-                <TextView android:id="@+id/k4" style="@style/WKey.Digit" android:text="4" />
-                <TextView android:id="@+id/k5" style="@style/WKey.Digit" android:text="5" />
-                <TextView android:id="@+id/k6" style="@style/WKey.Digit" android:text="6" />
-                <TextView android:id="@+id/kmul" style="@style/WKey.Op.Last" android:text="×" />
-            </LinearLayout>
-        </LinearLayout>
+    <LinearLayout style="@style/WKeyRow">
+        <TextView android:id="@+id/k7" style="@style/WKey.Digit" android:text="7" />
+        <TextView android:id="@+id/k8" style="@style/WKey.Digit" android:text="8" />
+        <TextView android:id="@+id/k9" style="@style/WKey.Digit" android:text="9" />
+        <TextView android:id="@+id/kdiv" style="@style/WKey.Op" android:text="÷" />
         <TextView android:id="@+id/kclr" style="@style/WKey.Fn.Last" android:text="C" android:contentDescription="모두 지우기" />
     </LinearLayout>
-    <LinearLayout style="@style/WKeyBlock">
-        <LinearLayout style="@style/WKeyBlockLeft" android:layout_weight="4" android:layout_width="12dp">
-            <LinearLayout style="@style/WKeyBlockRow">
-                <TextView android:id="@+id/k1" style="@style/WKey.Digit" android:text="1" />
-                <TextView android:id="@+id/k2" style="@style/WKey.Digit" android:text="2" />
-                <TextView android:id="@+id/k3" style="@style/WKey.Digit" android:text="3" />
-                <TextView android:id="@+id/ksub" style="@style/WKey.Op.Last" android:text="−" />
-            </LinearLayout>
-            <LinearLayout style="@style/WKeyBlockRow" android:layout_marginTop="4dp">
-                <TextView android:id="@+id/k00" style="@style/WKey.Digit" android:text="00" />
-                <TextView android:id="@+id/k0" style="@style/WKey.Digit" android:text="0" />
-                <TextView android:id="@+id/kdot" style="@style/WKey.Digit" android:text="." />
-                <TextView android:id="@+id/kadd" style="@style/WKey.Op.Last" android:text="+" />
-            </LinearLayout>
-        </LinearLayout>
+    <LinearLayout style="@style/WKeyRow">
+        <TextView android:id="@+id/k4" style="@style/WKey.Digit" android:text="4" />
+        <TextView android:id="@+id/k5" style="@style/WKey.Digit" android:text="5" />
+        <TextView android:id="@+id/k6" style="@style/WKey.Digit" android:text="6" />
+        <TextView android:id="@+id/kmul" style="@style/WKey.Op" android:text="×" />
         <TextView android:id="@+id/kdel" style="@style/WKey.Fn.Last" android:text="⌫" android:contentDescription="지우기" />
+    </LinearLayout>
+    <LinearLayout style="@style/WKeyRow">
+        <TextView android:id="@+id/k1" style="@style/WKey.Digit" android:text="1" />
+        <TextView android:id="@+id/k2" style="@style/WKey.Digit" android:text="2" />
+        <TextView android:id="@+id/k3" style="@style/WKey.Digit" android:text="3" />
+        <TextView android:id="@+id/ksub" style="@style/WKey.Op" android:text="−" />
+        <TextView android:id="@+id/k00" style="@style/WKey.Fn.Last" android:text="00" />
+    </LinearLayout>
+    <LinearLayout style="@style/WKeyRow">
+        <TextView android:id="@+id/k0" style="@style/WKey.Digit" android:layout_width="4dp" android:layout_weight="2" android:text="0" />
+        <TextView android:id="@+id/kdot" style="@style/WKey.Digit" android:text="." />
+        <TextView android:id="@+id/kadd" style="@style/WKey.Op" android:text="+" />
+        <TextView android:id="@+id/kcur" style="@style/WKey.Fn.Last" android:textSize="13sp" android:text="통화"
+            android:contentDescription="다음 통화로 바꾸기" />
     </LinearLayout>
 </LinearLayout>

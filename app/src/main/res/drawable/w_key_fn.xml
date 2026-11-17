@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 위젯 키. RemoteViews에는 물결(ripple) 피드백이 없어서 눌린 상태 색으로 대신한다. -->
+<!-- 기능 키(C ⌫ 00 통화). 테두리만 남겨 가장 덜 눌리게 한다. 눌리면 숫자 키와 같은 색으로 찬다. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
@@ -9,7 +9,8 @@
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/w_key_fn" />
+            <solid android:color="#00000000" />
+            <stroke android:width="1dp" android:color="@color/w_divider" />
             <corners android:radius="12dp" />
         </shape>
     </item>

@@ -74,7 +74,7 @@ fun TrendSheet(
                 .padding(bottom = 20.dp),
         ) {
             Text(
-                text = "${currency.flag} ${currency.code} 환율 추이",
+                text = "${currency.code} 환율 추이",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -319,7 +319,7 @@ fun TipSheet(state: UiState, onDismiss: () -> Unit) {
                 .padding(bottom = 20.dp),
         ) {
             Text(
-                text = "${tip.flag} 팁 계산",
+                text = "${currency.koreanName} 팁 계산",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -457,7 +457,7 @@ fun RefundSheet(state: UiState, onDismiss: () -> Unit) {
                 .padding(bottom = Space.gutter),
         ) {
             Text(
-                text = "${refund.countryFlag} 세금 환급 예상",
+                text = "세금 환급 예상",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,

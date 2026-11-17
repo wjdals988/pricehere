@@ -61,18 +61,18 @@ fun InfoScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .ambientGlow()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = Space.gutter),
+            .padding(horizontal = Space.l),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp),
+            modifier = Modifier.fillMaxWidth().height(72.dp).padding(start = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "정보",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.6).sp,
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 22.sp, letterSpacing = (-0.8).sp),
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onBackground,
             )
         }
@@ -99,7 +99,7 @@ fun InfoScreen(
         Spacer(Modifier.height(Space.xl))
         InfoFooter()
 
-        Spacer(Modifier.height(Space.xl))
+        Spacer(Modifier.height(NavClearance))
     }
 }
 
@@ -142,7 +142,7 @@ private fun VersionCard(
                 }
                 Text(
                     text = if (update != null) {
-                        "새 버전 v${update.latestVersion} 이 나왔습니다"
+                        "새 버전 v${update.latestVersion} 출시"
                     } else {
                         CHANGELOG.firstOrNull()?.headline ?: "변경 이력"
                     },

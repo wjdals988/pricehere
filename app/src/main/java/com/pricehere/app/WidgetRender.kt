@@ -37,7 +37,7 @@ fun renderRateWidget(context: Context): RemoteViews {
         val unit = currency.quoteUnit
         views.setTextViewText(
             CODE_IDS[i],
-            if (unit == 1) "${currency.flag} ${currency.code}" else "${currency.flag} ${unit}${currency.code}",
+            if (unit == 1) currency.code else "$unit ${currency.code}",
         )
         views.setTextViewText(
             RATE_IDS[i],
@@ -84,7 +84,9 @@ fun renderQuickWidget(context: Context): RemoteViews {
     bindHeader(context, views, provider, state)
     bindHero(context, views, state)
 
-    state.currency.quickAmounts.forEachIndexed { i, value ->
+    // 금액 버튼은 손가락 크기가 되도록 넷만 두고, 다섯째 칸은 숨긴다. 마지막 칸은 지우기(C).
+    views.setViewVisibility(CHIP_IDS[4], android.view.View.GONE)
+    state.currency.quickAmounts.take(4).forEachIndexed { i, value ->
         views.setTextViewText(CHIP_IDS[i], compact(value))
         views.setOnClickPendingIntent(
             CHIP_IDS[i],
@@ -122,24 +124,35 @@ private val DIGIT_KEYS = mapOf(
 private const val KEYPAD_TALL_MIN_HEIGHT = 380f
 
 fun renderKeypadWidget(context: Context): RemoteViews {
-    val compact = buildKeypad(context, R.layout.widget_keypad)
+    val compact = buildKeypad(context, R.layout.widget_keypad, compact = true)
     // 크기별 레이아웃은 Android 12(API 31)부터. 그 아래는 늘 한 줄 표시.
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return compact
     return RemoteViews(
         mapOf(
             SizeF(250f, 180f) to compact,
-            SizeF(250f, KEYPAD_TALL_MIN_HEIGHT) to buildKeypad(context, R.layout.widget_keypad_tall),
+            SizeF(250f, KEYPAD_TALL_MIN_HEIGHT) to buildKeypad(context, R.layout.widget_keypad_tall, compact = false),
         )
     )
 }
 
-private fun buildKeypad(context: Context, layout: Int): RemoteViews {
+private fun buildKeypad(context: Context, layout: Int, compact: Boolean): RemoteViews {
     val views = RemoteViews(context.packageName, layout)
     val provider = KeypadWidgetProvider::class.java
     val state = readState(context)
 
-    bindHeader(context, views, provider, state)
     bindHero(context, views, state)
+    if (compact) {
+        // 작은 위젯은 통화 칩 줄이 없다. 표시 줄 왼쪽에 지금 통화를 두고, "통화" 키는 다음 통화로 넘긴다.
+        val next = Currency.entries[(state.currency.ordinal + 1) % Currency.entries.size]
+        views.setTextViewText(R.id.w_cur_label, state.currency.code)
+        views.setTextViewText(R.id.w_amount, amountText(state))
+        views.setOnClickPendingIntent(
+            R.id.kcur,
+            WidgetHub.broadcast(context, provider, WidgetHub.ACTION_CURRENCY, next.code),
+        )
+    } else {
+        bindHeader(context, views, provider, state)
+    }
 
     DIGIT_KEYS.forEach { (id, key) ->
         views.setOnClickPendingIntent(
@@ -204,8 +217,8 @@ private fun bindHeader(
 ) {
     CURRENCY_IDS.forEach { (currency, id) ->
         val on = currency == state.currency
-        // 앱의 통화 선택과 같은 "국기 + 코드". 코드만 있으면 네 칸이 같은 모양이라 한눈에 안 갈린다.
-        views.setTextViewText(id, "${currency.flag} ${currency.code}")
+        // v2.7: 앱 통화 탭과 같이 코드만. 고른 칩은 진한 알약이라 국기 없이도 한눈에 갈린다.
+        views.setTextViewText(id, currency.code)
         views.setInt(
             id,
             "setBackgroundResource",
@@ -226,16 +239,17 @@ private fun bindHeader(
     )
 }
 
+/** 식이면 입력한 그대로(1,000 + 500), 숫자 하나면 통화 자릿수에 맞춰 보여준다. */
+private fun amountText(state: WidgetSnapshot): String = if (Expression.hasOperator(state.input)) {
+    Expression.pretty(state.input)
+} else {
+    format(state.amount ?: 0.0, state.currency.decimals)
+}
+
 private fun bindHero(context: Context, views: RemoteViews, state: WidgetSnapshot) {
     val currency = state.currency
     val unit = currency.quoteUnit
-    // 식이면 입력한 그대로(1,000 + 500), 숫자 하나면 통화 자릿수에 맞춰 보여준다.
-    val amountText = if (Expression.hasOperator(state.input)) {
-        Expression.pretty(state.input)
-    } else {
-        format(state.amount ?: 0.0, currency.decimals)
-    }
-    views.setTextViewText(R.id.w_amount, "$amountText ${currency.code}")
+    views.setTextViewText(R.id.w_amount, "${amountText(state)} ${currency.code}")
     views.setTextViewText(
         R.id.w_result,
         state.result?.let { "${format(it, 0)}원" } ?: "—",
