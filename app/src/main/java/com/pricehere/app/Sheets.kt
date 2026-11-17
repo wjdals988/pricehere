@@ -505,7 +505,7 @@ fun RefundSheet(state: UiState, onDismiss: () -> Unit) {
                     valueColor = MaterialTheme.colorScheme.primary,
                 )
                 DetailRow(
-                    label = if (refund.mode == RefundMode.IMMEDIATE) "면세가 실부담" else "환급 후 실부담",
+                    label = "환급 후 실부담",
                     value = "${format(after, decimals)} $code",
                     sub = "${format(after * base, 0)}원",
                 )

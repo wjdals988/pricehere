@@ -37,13 +37,10 @@ class PriceTextTest {
 }
 
 class TaxRefundDateTest {
-    @Test fun 개편_전날은_즉시면세() =
-        assertEquals(RefundMode.IMMEDIATE, Currency.JPY.taxRefundOn(java.time.LocalDate.of(2026, 10, 31))!!.mode)
-
-    @Test fun 개편일부터_공항환급() {
-        val r = Currency.JPY.taxRefundOn(java.time.LocalDate.of(2026, 11, 1))!!
-        assertEquals(RefundMode.REFUND, r.mode)
-        assertEquals("출국 공항에서 환급 예상", r.benefitLabel)
+    @Test fun 일본은_반출_확인_후_환급() {
+        val r = Currency.JPY.taxRefund!!
+        assertEquals("반출 확인 후 환급 예상", r.benefitLabel)
+        assertEquals(1.0, r.netFactor, 0.0)
     }
 
     @Test fun 대행사_환급은_수수료_표기() =
