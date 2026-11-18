@@ -175,10 +175,11 @@ internal fun DccHint(state: UiState, onOpen: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = Space.s)
+            // v2.13: 홈 아래쪽이 탭 바와 겹치지 않도록 낮게. 이 줄이 보이면 아래 간격을 그만큼 줄인다(ConverterScreen).
+            .padding(top = 4.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onOpen)
-            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = "원화 결제 주의 안내 열기" },
         verticalAlignment = Alignment.CenterVertically,
     ) {

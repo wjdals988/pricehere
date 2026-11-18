@@ -12,6 +12,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.layout.boundsInWindow
 import kotlinx.coroutines.launch
@@ -238,7 +239,9 @@ fun ConverterScreen(
                     AnimatedVisibility(visible = state.priceMode == PriceMode.CARD) {
                         DccHint(state = state, onOpen = { showDcc = true })
                     }
-                    Spacer(Modifier.height(Space.m))
+                    // DCC 한 줄이 보이면 그 줄이 간격을 대신한다. 카드를 골라도 아래 내용이 거의 밀리지 않는다.
+                    val rateGap by animateDpAsState(if (state.priceMode == PriceMode.CARD) 2.dp else Space.m, label = "rateGap")
+                    Spacer(Modifier.height(rateGap))
                     RateRow(state = state, now = now, onRefresh = { viewModel.refresh(manual = true) })
                     Spacer(Modifier.height(Space.m))
                     ToolTiles(
