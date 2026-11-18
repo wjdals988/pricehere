@@ -34,6 +34,9 @@ const val COPYRIGHT_YEAR = "2026"
 const val DASHBOARD_URL = "https://coldbrewventi.vercel.app"
 const val DASHBOARD_HOST = "coldbrewventi.vercel.app"
 const val GITHUB_URL = "https://github.com/wjdals988"
+/** 전체 업데이트 내역(릴리스 목록). 앱 안에는 최근 몇 개만 보여주고 나머지는 여기로 보낸다. */
+const val RELEASES_URL = "https://github.com/wjdals988/pricehere/releases"
+
 /** 공유 문구에 넣는 앱 받기 주소. 릴리스마다 같은 이름의 사본(pricehere.apk)을 올려 늘 최신 APK를 가리킨다. */
 const val DOWNLOAD_URL = "https://github.com/wjdals988/pricehere/releases/latest/download/pricehere.apk"
 const val ISSUES_URL = "https://github.com/wjdals988/pricehere/issues"

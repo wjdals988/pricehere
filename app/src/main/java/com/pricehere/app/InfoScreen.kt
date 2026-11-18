@@ -208,12 +208,34 @@ private fun VersionCard(
         if (!open) return@SectionCard
 
         Spacer(Modifier.height(Space.l))
-        CHANGELOG.forEachIndexed { index, release ->
+        // 최근 3개만 펼친다. 버전이 쌓여 목록이 길어지면 정보 탭 전체가 늘어지므로(v2.14.1),
+        // 나머지는 GitHub 릴리스 페이지에서 본다.
+        val recent = CHANGELOG.take(RECENT_RELEASES)
+        recent.forEachIndexed { index, release ->
             ReleaseCard(release = release, latest = index == 0)
-            if (index != CHANGELOG.lastIndex) Spacer(Modifier.height(Space.s))
+            if (index != recent.lastIndex) Spacer(Modifier.height(Space.s))
+        }
+        val older = CHANGELOG.size - recent.size
+        if (older > 0) {
+            Spacer(Modifier.height(Space.s))
+            Text(
+                text = "이전 업데이트 ${older}개 더보기 ›",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(Radius.pillShape)
+                    .clickable { open(context, RELEASES_URL) }
+                    .padding(vertical = 12.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
 }
+
+/** 정보 탭에서 펼쳐 보여줄 최근 업데이트 수. */
+private const val RECENT_RELEASES = 3
 
 @Composable
 private fun ThemeCard(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
