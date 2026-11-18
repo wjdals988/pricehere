@@ -168,7 +168,7 @@ internal fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
 internal fun DccHint(state: UiState, onOpen: () -> Unit) {
     val won = state.krwFor(PriceMode.CARD)?.takeIf { it > 0 }
     val text = if (won != null) {
-        "현지 통화로 결제 · 원화 결제 시 약 +${format(won * 0.03, 0)}~${format(won * 0.08, 0)}원"
+        dccExtraRange(won).let { (low, high) -> "현지 통화로 결제 · 원화 결제 시 약 +${format(low, 0)}~${format(high, 0)}원" }
     } else {
         "현지 통화로 결제 · 원화 결제(DCC)는 약 3~8% 더 비쌈"
     }
