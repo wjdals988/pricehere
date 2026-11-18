@@ -611,7 +611,9 @@ private fun SavedRow(
         enableDismissFromStartToEnd = false,
         gesturesEnabled = !picking,
         backgroundContent = {
-            Box(
+            // 실제로 밀고 있을 때만 빨간 바탕을 그린다. 늘 깔아 두면 탭 사이 이어지는 전환에서
+            // 행이 움직이는 동안 원래 자리에 빨간 바탕과 휴지통이 드러난다(v2.14 #4).
+            if (dismiss.dismissDirection != SwipeToDismissBoxValue.Settled) Box(
                 Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.errorContainer)

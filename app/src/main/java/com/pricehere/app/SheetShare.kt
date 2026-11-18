@@ -66,8 +66,9 @@ import java.time.format.DateTimeFormatter
 fun ShareSheet(state: UiState, onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val text = remember(state) { buildConversionShareText(state) }
-    val card = remember(state.result, state.input, state.priceMode, state.selected, state.foreignToKrw, state.snapshot) {
-        ShareCard.render(context, state)
+    val dark = isDark()
+    val card = remember(state.result, state.input, state.priceMode, state.selected, state.foreignToKrw, state.snapshot, dark) {
+        ShareCard.render(context, state, dark)
     }
     ImageShareSheet(title = "환산 결과 공유", card = card, text = text, onDismiss = onDismiss)
 }
@@ -77,7 +78,8 @@ fun ShareSheet(state: UiState, onDismiss: () -> Unit) {
 fun SavedShareSheet(items: List<SavedItem>, snapshot: Snapshot?, onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val text = remember(items, snapshot) { buildSavedShareText(items, snapshot) }
-    val card = remember(items, snapshot) { ShareCard.renderSaved(context, items, snapshot) }
+    val dark = isDark()
+    val card = remember(items, snapshot, dark) { ShareCard.renderSaved(context, items, snapshot, dark) }
     ImageShareSheet(title = "저장 목록 공유", card = card, text = text, onDismiss = onDismiss)
 }
 
