@@ -413,6 +413,13 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         return removed
     }
 
+    /** 저장 항목 고치기(이름·금액·결제 수단). 금액이 0 이하면 무시한다. */
+    fun updateSaved(item: SavedItem) {
+        if (item.amount <= 0.0) return
+        _state.update { it.copy(saved = store.update(item)) }
+        WidgetHub.updateAll(getApplication())
+    }
+
     fun restoreSaved(item: SavedItem) {
         _state.update { it.copy(saved = store.restore(item)) }
     }
