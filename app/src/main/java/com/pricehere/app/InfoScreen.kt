@@ -88,6 +88,11 @@ fun InfoScreen(
 
         ThemeCard(current = state.themeMode, onSelect = viewModel::setThemeMode)
 
+        if (WidgetPalette.supported) {
+            Spacer(Modifier.height(Space.m))
+            WidgetPaletteCard(current = state.widgetPalette, onSelect = viewModel::setWidgetPalette)
+        }
+
         Spacer(Modifier.height(Space.m))
 
         WidgetCard()
@@ -217,6 +222,35 @@ private fun ThemeCard(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
                     selected = mode == current,
                     modifier = Modifier.weight(1f),
                 ) { onSelect(mode) }
+            }
+        }
+    }
+}
+
+/** 위젯 색. 배경화면 색을 고르면 홈 화면 배경화면에서 뽑은 시스템 색(Material You)을 따른다. */
+@Composable
+private fun WidgetPaletteCard(current: WidgetPalette, onSelect: (WidgetPalette) -> Unit) {
+    SectionCard(background = MaterialTheme.colorScheme.surfaceContainer) {
+        Text(
+            text = "위젯 색",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(Space.xs))
+        Text(
+            text = "배경화면 색을 고르면 홈 화면 배경화면에 어울리는 색으로 바뀝니다.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(Space.m))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            WidgetPalette.entries.forEach { palette ->
+                Pill(
+                    text = palette.label,
+                    selected = palette == current,
+                    modifier = Modifier.weight(1f),
+                ) { onSelect(palette) }
             }
         }
     }

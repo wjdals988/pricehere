@@ -53,7 +53,15 @@ class SettingsStore(context: Context) {
         prefs.edit().putString(KEY_PRICE_MODE, mode.name).apply()
     }
 
+    /** 위젯 색(앱 색 / 배경화면 색). 위젯이 그릴 때 직접 읽는다. */
+    fun widgetPalette(): WidgetPalette = WidgetPalette.of(prefs.getString(KEY_WIDGET_PALETTE, null))
+
+    fun setWidgetPalette(palette: WidgetPalette) {
+        prefs.edit().putString(KEY_WIDGET_PALETTE, palette.name).apply()
+    }
+
     private companion object {
+        const val KEY_WIDGET_PALETTE = "widgetPalette"
         const val KEY_PRICE_MODE = "priceMode"
         const val KEY_NETWORK_COUNTRY = "networkCountry"
         const val KEY_LAUNCHES = "launches"

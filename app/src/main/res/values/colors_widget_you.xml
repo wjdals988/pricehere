@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯 "배경화면 색" 모드용 색. Android 12 미만에서는 쓰이지 않지만 컴파일을 위해 앱 색으로 채운다. -->
+<resources>
+    <color name="wy_bg">@color/w_bg</color>
+    <color name="wy_key">@color/w_key</color>
+    <color name="wy_key_pressed">@color/w_key_pressed</color>
+    <color name="wy_key_op">@color/w_key_op</color>
+    <color name="wy_key_op_pressed">@color/w_key_op_pressed</color>
+    <color name="wy_key_fn">@color/w_divider</color>
+    <color name="wy_text">@color/w_text</color>
+    <color name="wy_muted">@color/w_muted</color>
+    <color name="wy_accent">@color/w_accent</color>
+    <color name="wy_ink">@color/w_ink</color>
+    <color name="wy_on_ink">@color/w_on_accent</color>
+    <color name="wy_hero">@color/w_hero</color>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯 "배경화면 색" 모드(밝게). 시스템 동적 색(Material You). -->
+<resources>
+    <color name="wy_bg">@android:color/system_neutral1_50</color>
+    <color name="wy_key">@android:color/system_neutral1_10</color>
+    <color name="wy_key_pressed">@android:color/system_neutral2_100</color>
+    <color name="wy_key_op">@android:color/system_accent1_100</color>
+    <color name="wy_key_op_pressed">@android:color/system_accent1_200</color>
+    <color name="wy_key_fn">@android:color/system_neutral2_200</color>
+    <color name="wy_text">@android:color/system_neutral1_900</color>
+    <color name="wy_muted">@android:color/system_neutral2_600</color>
+    <color name="wy_accent">@android:color/system_accent1_600</color>
+    <color name="wy_ink">@android:color/system_accent1_700</color>
+    <color name="wy_on_ink">@android:color/system_accent1_0</color>
+    <color name="wy_hero">@android:color/system_neutral1_10</color>
+</resources>

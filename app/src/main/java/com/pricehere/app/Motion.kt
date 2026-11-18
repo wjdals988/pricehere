@@ -1,5 +1,11 @@
 package com.pricehere.app
 
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -49,6 +55,12 @@ object Haptic {
     /** 통화·결제 수단처럼 칸을 고를 때. */
     fun segment(view: View) {
         val c = if (Build.VERSION.SDK_INT >= 34) HapticFeedbackConstants.SEGMENT_TICK else HapticFeedbackConstants.CLOCK_TICK
+        view.performHapticFeedback(c)
+    }
+
+    /** 한도를 넘는 것처럼 주의를 줄 때. */
+    fun reject(view: View) {
+        val c = if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.LONG_PRESS
         view.performHapticFeedback(c)
     }
 
@@ -159,5 +171,32 @@ fun Modifier.introRise(delayMillis: Int): Modifier {
     return graphicsLayer {
         alpha = p
         translationY = (1f - p) * lift
+    }
+}
+
+// ---------------------------------------------------------------- 탭 사이 이어지는 전환
+
+/**
+ * 홈의 '최근 저장' 행을 누르면 저장 탭의 같은 행으로 커지며 이어진다.
+ * 탭 전환(AnimatedContent)과 SharedTransitionLayout의 범위를 화면 깊숙이 넘기기 위한 통로.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+val LocalSharedScope = staticCompositionLocalOf<SharedTransitionScope?> { null }
+val LocalTabScope = staticCompositionLocalOf<AnimatedVisibilityScope?> { null }
+
+/** 같은 key를 단 두 화면의 요소가 탭을 오갈 때 자리와 크기를 이어받는다. 범위가 없으면 그대로. */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun Modifier.sharedSaved(key: String): Modifier {
+    val shared = LocalSharedScope.current ?: return this
+    val tab = LocalTabScope.current ?: return this
+    return with(shared) {
+        this@sharedSaved.sharedBounds(
+            sharedContentState = rememberSharedContentState(key),
+            animatedVisibilityScope = tab,
+            enter = fadeIn(tween(220)),
+            exit = fadeOut(tween(160)),
+            boundsTransform = { _, _ -> spring(dampingRatio = 0.86f, stiffness = 420f) },
+        )
     }
 }

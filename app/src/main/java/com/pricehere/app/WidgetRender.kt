@@ -51,6 +51,9 @@ fun renderRateWidget(context: Context): RemoteViews {
         WidgetHub.broadcast(context, RateWidgetProvider::class.java, WidgetHub.ACTION_REFRESH),
     )
     views.setOnClickPendingIntent(R.id.w_root, WidgetHub.openApp(context))
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WidgetYou.enabled(context)) {
+        WidgetYou.rates(views, CODE_IDS, RATE_IDS, stale = isStale(snapshot))
+    }
     return views
 }
 
@@ -98,6 +101,11 @@ fun renderQuickWidget(context: Context): RemoteViews {
         CHIP_IDS[5],
         WidgetHub.broadcast(context, provider, WidgetHub.ACTION_AMOUNT, ""),
     )
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WidgetYou.enabled(context)) {
+        WidgetYou.header(views, CURRENCY_IDS, state.currency)
+        WidgetYou.hero(views, stale = isStale(state.snapshot))
+        WidgetYou.quick(views, CHIP_IDS)
+    }
     return views
 }
 
@@ -163,6 +171,11 @@ private fun buildKeypad(context: Context, layout: Int, compact: Boolean): Remote
     // 열기 키 대신 표시 영역 전체(식·결과·환율 줄과 그 여백)를 누르면 앱이 열린다.
     // 입력하던 식과 통화를 그대로 들고 간다.
     views.setOnClickPendingIntent(R.id.w_display, WidgetHub.openAppWith(context, state.currency, state.input))
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WidgetYou.enabled(context)) {
+        if (!compact) WidgetYou.header(views, CURRENCY_IDS, state.currency)
+        WidgetYou.hero(views, stale = isStale(state.snapshot))
+        WidgetYou.keypad(views, compact)
+    }
     return views
 }
 
@@ -178,11 +191,13 @@ private fun stamp(snapshot: Snapshot): String = DAY_STAMP.format(Instant.ofEpoch
  * 색도 그린 시점 기준이라, 시간이 지나도 틀려지지 않는 경우에만 경고색을 쓴다.
  * "오프라인 캐시"와 "고시 후 24시간 넘음"은 한번 참이면 계속 참이다. 앱의 dotColor와 같은 기준이다.
  */
-private fun staleColor(snapshot: Snapshot?, normal: Int): Int {
-    snapshot ?: return normal
+private fun staleColor(snapshot: Snapshot?, normal: Int): Int =
+    if (isStale(snapshot)) R.color.w_stale else normal
+
+private fun isStale(snapshot: Snapshot?): Boolean {
+    snapshot ?: return false
     val minutes = (System.currentTimeMillis() - snapshot.quotedAtMillis) / 60_000L
-    val stale = dotColor(snapshot.source, minutes) == Freshness.stale
-    return if (stale) R.color.w_stale else normal
+    return dotColor(snapshot.source, minutes) == Freshness.stale
 }
 
 /**

@@ -262,7 +262,11 @@ fun ConverterScreen(
                     rollTicks = false
                     viewModel.appendOperator(it)
                 },
-                onSave = { askMemo = true },
+                // 입력하자마자 보내는 경우가 많아 키보드 위 버튼은 공유로 둔다. 저장은 가격표 안에 그대로 있다.
+                onShare = {
+                    focus.clearFocus()
+                    showShare = true
+                },
             )
         }
     }
@@ -1111,7 +1115,9 @@ private fun RecentSaved(state: UiState, onOpen: () -> Unit) {
                 val won = item.krwAt(state.snapshot?.rates?.get(item.currencyCode) ?: item.rateAtSave)
                 Row(
                     modifier = Modifier
+                        .sharedSaved("saved-row-${item.id}")
                         .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
                         .clickable(onClick = onOpen)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1151,10 +1157,10 @@ private val OPERATOR_BAR_HEIGHT = 68.dp
 
 /**
  * 시스템 숫자 키보드에는 연산자가 없다. 키보드가 떠 있는 동안 그 바로 위에 붙는 글래스 연산자 줄.
- * 끝에 저장을 두어 계산을 마치면 키보드를 닫지 않고 바로 저장한다.
+ * 끝에는 공유를 둔다. 계산하자마자 보내는 경우가 많고, 저장은 가격표 안에 그대로 있다(v2.11).
  */
 @Composable
-private fun OperatorBar(modifier: Modifier, onOperator: (Char) -> Unit, onSave: () -> Unit) {
+private fun OperatorBar(modifier: Modifier, onOperator: (Char) -> Unit, onShare: () -> Unit) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1173,13 +1179,18 @@ private fun OperatorBar(modifier: Modifier, onOperator: (Char) -> Unit, onSave: 
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(14.dp))
                 .background(TealGradient)
-                .clickable(onClick = onSave),
+                .clickable(onClick = onShare),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TagIcon(Color.White, sizeDp = 15)
+            Icon(
+                imageVector = Icons.Filled.Share,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+                tint = Color.White,
+            )
             Spacer(Modifier.width(5.dp))
-            Text("저장", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text("공유", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
 }
