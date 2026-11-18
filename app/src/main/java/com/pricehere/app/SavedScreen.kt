@@ -1,5 +1,10 @@
 package com.pricehere.app
 
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.geometry.Size
@@ -82,7 +87,10 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
     // 고른 항목을 카드로 보여주는 공유 시트. null이면 닫힘.
     var shareItems by remember { mutableStateOf<List<SavedItem>?>(null) }
     shareItems?.let { SavedShareSheet(items = it, snapshot = state.snapshot, onDismiss = { shareItems = null }) }
-    val items = state.saved
+    // 고치는 중인 항목과 그 초안. 초안은 시트에서 바꾸는 즉시 목록에 미리 반영된다(저장 전).
+    var editing by remember { mutableStateOf<SavedItem?>(null) }
+    var draft by remember { mutableStateOf<SavedItem?>(null) }
+    val items = state.saved.map { item -> draft?.takeIf { it.id == item.id } ?: item }
 
     // 목록이 비면 선택 모드를 유지할 이유가 없다.
     LaunchedEffect(items.size) {
@@ -106,11 +114,47 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
         }
     }
 
+    editing?.let { original ->
+        EditSavedSheet(
+            original = original,
+            draft = draft ?: original,
+            onDraft = { draft = it },
+            previewKrw = (draft ?: original).let { d -> d.krwAt(state.snapshot?.rates?.get(d.currencyCode) ?: d.rateAtSave) },
+            onSave = {
+                viewModel.updateSaved(it)
+                editing = null
+                draft = null
+            },
+            onDelete = {
+                editing = null
+                draft = null
+                delete(original)
+            },
+            onDismiss = {
+                editing = null
+                draft = null
+            },
+        )
+    }
+
+
+    // 고치기 시트를 열면 그 항목이 헤더 바로 아래로 오게 스크롤한다. 키보드가 올라와도 위에서 보인다.
+    val scroll = rememberScrollState()
+    val rowTops = remember { mutableStateMapOf<Long, Float>() }
+    val density = LocalDensity.current
+    LaunchedEffect(editing?.id) {
+        val id = editing?.id ?: return@LaunchedEffect
+        delay(60) // 아래 여백이 늘어난 뒤에 스크롤해야 끝 항목도 올라온다.
+        val top = rowTops[id] ?: return@LaunchedEffect
+        val target = with(density) { 132.dp.toPx() }
+        scroll.animateScrollTo((scroll.value + (top - target)).toInt().coerceIn(0, scroll.maxValue))
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .ambientGlow()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .padding(horizontal = Space.l),
     ) {
         SavedHeader(
@@ -152,6 +196,7 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
         ) {
             items.forEachIndexed { i, item ->
                 key(item.id) {
+                    Box(Modifier.onGloballyPositioned { rowTops[item.id] = it.positionInRoot().y }) {
                     SavedRow(
                         item = item,
                         currentRate = state.snapshot?.rates?.get(item.currencyCode),
@@ -161,7 +206,13 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
                             if (item.id in picked) picked.remove(item.id) else picked.add(item.id)
                         },
                         onDelete = { delete(item) },
+                        highlighted = editing?.id == item.id,
+                        onEdit = {
+                            editing = item
+                            draft = item
+                        },
                     )
+                    }
                 }
                 if (i < items.lastIndex) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
@@ -187,7 +238,7 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "왼쪽으로 밀어서 삭제",
+                    text = "눌러서 고치기 · 왼쪽으로 밀어서 삭제",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
@@ -206,6 +257,8 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
         }
 
         Spacer(Modifier.height(NavClearance))
+        // 고치는 동안에는 시트 높이만큼 아래 여백을 더해, 마지막 항목도 시트 위로 올릴 수 있게.
+        if (editing != null) Spacer(Modifier.height(440.dp))
     }
 
     if (askClear) {
@@ -537,6 +590,8 @@ private fun SavedRow(
     checked: Boolean,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
+    highlighted: Boolean = false,
+    onEdit: () -> Unit = {},
 ) {
     val nowKrw = item.krwAt(currentRate ?: item.rateAtSave)
     val diff = nowKrw - item.krwAtSave
@@ -577,9 +632,16 @@ private fun SavedRow(
                 .sharedSaved("saved-row-${item.id}")
                 .fillMaxWidth()
                 .background(
-                    if (picking && checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                    when {
+                        picking && checked -> MaterialTheme.colorScheme.primaryContainer
+                        // 고치는 중인 항목은 옅게 칠해 시트 위에서도 어느 항목인지 보이게.
+                        // 불투명하게 섞는다. 반투명이면 밀어서 삭제할 때의 빨간 바탕이 비친다.
+                        highlighted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surface)
+                        else -> MaterialTheme.colorScheme.surface
+                    }
                 )
-                .clickable(enabled = picking, onClick = onToggle)
+                // 고르기 중에는 체크, 아니면 고치기 시트.
+                .clickable { if (picking) onToggle() else onEdit() }
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

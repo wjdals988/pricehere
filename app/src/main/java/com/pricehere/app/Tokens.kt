@@ -87,3 +87,12 @@ object Num {
         fontFeatureSettings = FEATURES,
     )
 }
+
+/**
+ * 기기 글자 크기가 이 배율 이상이면 좁은 칸에서 보조 표시(국기·수수료율)를 숨기고 금액을 줄여 쓴다(v2.13 #6).
+ * 에뮬레이터 실측: 130%에서는 모두 들어가고, 200%에서 통화 칸·빠른 금액·결제 수단 이름이 넘쳤다.
+ */
+const val LARGE_FONT_SCALE = 1.5f
+
+@androidx.compose.runtime.Composable
+fun isLargeFont(): Boolean = androidx.compose.ui.platform.LocalDensity.current.fontScale >= LARGE_FONT_SCALE

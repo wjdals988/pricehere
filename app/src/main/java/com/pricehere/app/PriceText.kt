@@ -21,6 +21,23 @@ object LocalCurrency {
         "cz" -> Currency.CZK
         in EURO -> Currency.EUR
         in DOLLAR -> Currency.USD
+        // v2.13에 늘린 통화
+        "cn" -> Currency.CNY
+        "hk" -> Currency.HKD
+        "tw" -> Currency.TWD
+        "th" -> Currency.THB
+        "vn" -> Currency.VND
+        "ph" -> Currency.PHP
+        "sg" -> Currency.SGD
+        "my" -> Currency.MYR
+        "id" -> Currency.IDR
+        "au" -> Currency.AUD
+        "nz" -> Currency.NZD
+        "ca" -> Currency.CAD
+        "gb" -> Currency.GBP
+        "ch", "li" -> Currency.CHF
+        "hu" -> Currency.HUF
+        "tr" -> Currency.TRY
         else -> null
     }
 
@@ -31,9 +48,16 @@ object LocalCurrency {
      *
      * @return 새로 고를 통화. 바꿀 것이 없으면 null.
      */
-    fun decide(country: String, lastCountry: String?, selected: Currency): Currency? {
+    fun decide(
+        country: String,
+        lastCountry: String?,
+        selected: Currency,
+        favorites: List<Currency> = Currency.DEFAULT_FAVORITES,
+    ): Currency? {
         if (country.isBlank() || country.equals(lastCountry, ignoreCase = true)) return null
         val target = forCountry(country) ?: return null
+        // 홈 통화 칸에 있는 통화로만 바꾼다. 칸 구성은 사용자가 정한 것이라 앱이 임의로 고치지 않는다.
+        if (target !in favorites) return null
         return target.takeIf { it != selected }
     }
 }

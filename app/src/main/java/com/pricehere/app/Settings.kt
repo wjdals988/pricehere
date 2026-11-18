@@ -53,6 +53,19 @@ class SettingsStore(context: Context) {
         prefs.edit().putString(KEY_PRICE_MODE, mode.name).apply()
     }
 
+    /** 홈 통화 칸에 놓을 통화(1~4개, 고른 순서). 위젯 통화 칩도 이 순서를 따른다. */
+    fun favorites(): List<Currency> {
+        val raw = prefs.getString(KEY_FAVORITES, null) ?: return Currency.DEFAULT_FAVORITES
+        val list = raw.split(",").mapNotNull { code -> Currency.entries.firstOrNull { it.code == code } }.distinct()
+        return list.take(Currency.MAX_FAVORITES).ifEmpty { Currency.DEFAULT_FAVORITES }
+    }
+
+    fun setFavorites(list: List<Currency>) {
+        val clean = list.distinct().take(Currency.MAX_FAVORITES)
+        if (clean.isEmpty()) return
+        prefs.edit().putString(KEY_FAVORITES, clean.joinToString(",") { it.code }).apply()
+    }
+
     /** 위젯 색(앱 색 / 배경화면 색). 위젯이 그릴 때 직접 읽는다. */
     fun widgetPalette(): WidgetPalette = WidgetPalette.of(prefs.getString(KEY_WIDGET_PALETTE, null))
 
@@ -62,6 +75,7 @@ class SettingsStore(context: Context) {
 
     private companion object {
         const val KEY_WIDGET_PALETTE = "widgetPalette"
+        const val KEY_FAVORITES = "favorites"
         const val KEY_PRICE_MODE = "priceMode"
         const val KEY_NETWORK_COUNTRY = "networkCountry"
         const val KEY_LAUNCHES = "launches"

@@ -107,7 +107,10 @@ enum class Currency(
      * 값으로 두면 enum이 처음 만들어질 때 한 번만 계산되어, 앱이 자정을 넘겨 살아 있으면 옛 제도가 남는다.
      */
     private val refundOn: (LocalDate) -> TaxRefund?,
-    val tip: TipGuide,
+    /** 팁 안내. v2.13에 늘린 통화처럼 자료가 없으면 null(환급도 '자료 없음'으로 표시). */
+    val tip: TipGuide?,
+    /** 통화 고르기 목록의 묶음 이름. */
+    val region: String = "자주 쓰는 통화",
 ) {
     USD(
         "USD", "미국 달러", "🇺🇸", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.75, { null },
@@ -143,7 +146,27 @@ enum class Currency(
             "체코는 5~10%가 일반적입니다. 카드로 낼 때 팁을 따로 못 올리는 곳이 많아 " +
                 "현금 잔돈을 남기는 방식이 흔합니다.",
         ),
-    );
+    ),
+
+    // v2.13: 자주 쓰는 통화 고르기용. 네이버(하나은행) 고시 확인 완료(2026-11-18).
+    // VND·IDR은 엔화처럼 100단위 고시. 현찰 스프레드는 대표 추정치이고, 환급·팁 자료는 없다.
+    // ECB(2차 출처)에는 TWD·VND가 없어 네이버가 실패하면 마지막 저장 환율을 쓴다.
+    CNY("CNY", "중국 위안", "🇨🇳", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 5.0, { null }, null, "아시아"),
+    HKD("HKD", "홍콩 달러", "🇭🇰", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97, { null }, null, "아시아"),
+    TWD("TWD", "대만 달러", "🇹🇼", 1, 0, listOf(50, 100, 500, 1_000, 5_000), 1.2, 10.0, { null }, null, "아시아"),
+    THB("THB", "태국 바트", "🇹🇭", 1, 2, listOf(20, 100, 500, 1_000, 5_000), 1.2, 6.0, { null }, null, "아시아"),
+    VND("VND", "베트남 동", "🇻🇳", 100, 0, listOf(10_000, 50_000, 100_000, 500_000, 1_000_000), 1.2, 12.0, { null }, null, "아시아"),
+    PHP("PHP", "필리핀 페소", "🇵🇭", 1, 2, listOf(50, 100, 500, 1_000, 5_000), 1.2, 8.0, { null }, null, "아시아"),
+    SGD("SGD", "싱가포르 달러", "🇸🇬", 1, 2, listOf(5, 10, 50, 100, 500), 1.2, 1.99, { null }, null, "아시아"),
+    MYR("MYR", "말레이시아 링깃", "🇲🇾", 1, 2, listOf(5, 10, 50, 100, 500), 1.2, 6.0, { null }, null, "아시아"),
+    IDR("IDR", "인도네시아 루피아", "🇮🇩", 100, 0, listOf(10_000, 50_000, 100_000, 500_000, 1_000_000), 1.2, 12.0, { null }, null, "아시아"),
+    AUD("AUD", "호주 달러", "🇦🇺", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97, { null }, null, "오세아니아"),
+    NZD("NZD", "뉴질랜드 달러", "🇳🇿", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97, { null }, null, "오세아니아"),
+    CAD("CAD", "캐나다 달러", "🇨🇦", 1, 2, listOf(10, 50, 100, 500, 1_000), 1.2, 1.97, { null }, null, "아메리카"),
+    GBP("GBP", "영국 파운드", "🇬🇧", 1, 2, listOf(5, 10, 50, 100, 500), 1.2, 1.97, { null }, null, "유럽"),
+    CHF("CHF", "스위스 프랑", "🇨🇭", 1, 2, listOf(5, 10, 50, 100, 500), 1.2, 1.97, { null }, null, "유럽"),
+    HUF("HUF", "헝가리 포린트", "🇭🇺", 1, 0, listOf(500, 1_000, 5_000, 10_000, 50_000), 1.2, 8.0, { null }, null, "유럽"),
+    TRY("TRY", "튀르키예 리라", "🇹🇷", 1, 2, listOf(50, 100, 500, 1_000, 5_000), 1.2, 9.0, { null }, null, "유럽");
 
     val naverCode: String get() = "FX_${code}KRW"
 
@@ -152,8 +175,19 @@ enum class Currency(
 
     fun taxRefundOn(date: LocalDate): TaxRefund? = refundOn(date)
 
+    /** 추이 그래프 출처(ECB)에 있는 통화인지. TWD·VND는 없어 추이 칸을 '자료 없음'으로 막는다. */
+    val hasHistory: Boolean get() = code !in NO_ECB
+
+    /** 환급·팁 자료가 없는 통화. 도구 칸에 '자료 없음'으로 보인다. */
+    val basicOnly: Boolean get() = tip == null
+
     companion object {
         fun of(code: String?): Currency = entries.firstOrNull { it.code == code } ?: CZK
+
+        /** 홈 통화 칸 기본값. */
+        val DEFAULT_FAVORITES: List<Currency> = listOf(USD, EUR, JPY, CZK)
+        const val MAX_FAVORITES = 4
+        private val NO_ECB = setOf("TWD", "VND")
     }
 }
 
@@ -185,9 +219,17 @@ data class Snapshot(
 
 class NoRatesException : Exception("환율을 가져오지 못했습니다")
 
-class RateRepository(context: Context) {
+class RateRepository(private val context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /**
+     * 받아올 통화: 홈 통화 칸 4개 + 지금 고른 통화 + 저장 항목의 통화 + USD(입국 면세 한도 계산).
+     * 통화가 20종으로 늘어 모두 받으면 새로고침마다 요청이 20번이라, 쓰는 것만 받는다(v2.13).
+     */
+    private fun neededCurrencies(): List<Currency> =
+        (SettingsStore(context).favorites() + loadSelected() + Currency.USD +
+            SavedStore(context).load().map { it.currency }).distinct()
 
     /**
      * 1차 네이버(하나은행 매매기준율) → 2차 Frankfurter(ECB) → 3차 마지막 성공 캐시.
@@ -214,7 +256,7 @@ class RateRepository(context: Context) {
     // ---------- 1차: 네이버 (하나은행 고시회차, delayTime 0) ----------
 
     private suspend fun fetchNaver(): Snapshot = coroutineScope {
-        val results = Currency.entries
+        val results = neededCurrencies()
             .map { currency ->
                 async(Dispatchers.IO) {
                     val body = httpGet("$NAVER_BASE/${currency.naverCode}")
@@ -263,16 +305,18 @@ class RateRepository(context: Context) {
     // ---------- 2차: Frankfurter (ECB 공식, 무키) ----------
 
     private fun fetchFrankfurter(): Snapshot {
-        val symbols = (Currency.entries.map { it.code } + "KRW").joinToString(",")
+        val needed = neededCurrencies()
+        val symbols = (needed.map { it.code } + "KRW").joinToString(",")
         val json = JSONObject(httpGet("$FRANKFURTER_BASE?base=EUR&symbols=$symbols"))
         val quoted = json.getJSONObject("rates")
         val krwPerEur = quoted.getDouble("KRW")
 
         // ECB는 EUR 기준만 주므로 KRW 교차환율로 환산한다.
-        val rates = Currency.entries.associate { currency ->
-            val perEur = if (currency.code == "EUR") 1.0 else quoted.getDouble(currency.code)
-            currency.code to krwPerEur / perEur
-        }
+        // ECB에 없는 통화(TWD·VND)는 건너뛴다. 그 통화는 화면에서 마지막 저장 환율을 쓴다.
+        val rates = needed.mapNotNull { currency ->
+            val perEur = if (currency.code == "EUR") 1.0 else quoted.optDouble(currency.code, Double.NaN)
+            if (perEur.isNaN() || perEur <= 0) null else currency.code to krwPerEur / perEur
+        }.toMap()
 
         // ECB 고시는 해당 일자 16:00 CET.
         val quotedAt = LocalDate.parse(json.getString("date"))

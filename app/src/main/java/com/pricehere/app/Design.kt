@@ -322,12 +322,13 @@ fun SlidingSegments(
     BoxWithConstraints(modifier.fillMaxWidth().glass(track).padding(4.dp)) {
         val cell = maxWidth / count
         val x by animateDpAsState(
-            targetValue = cell * selected,
+            targetValue = cell * selected.coerceAtLeast(0),
             animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
             label = "segment",
         )
         // 세로 스크롤 안이라 높이 제약이 무한이다. matchParentSize로 형제 Row 높이에 맞춘 상자 안에서 그린다.
-        Box(Modifier.matchParentSize()) {
+        // 고른 칸이 목록에 없으면(외부에서 칸 밖 통화로 열었을 때) 알약을 그리지 않는다.
+        if (selected >= 0) Box(Modifier.matchParentSize()) {
             Box(
                 Modifier
                     .offset(x = x)

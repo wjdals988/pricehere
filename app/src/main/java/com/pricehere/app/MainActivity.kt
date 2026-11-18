@@ -101,7 +101,7 @@ class MainActivity : ComponentActivity() {
                 splash.animate().alpha(0f).setDuration(200).withEndAction { splash.remove() }.start()
                 return@setOnExitAnimationListener
             }
-            // 아이콘 뷰 안에서 타일이 차지하는 크기(splash_icon.xml의 48/108).
+            // 아이콘 뷰 안에서 타일이 화면에 그려지는 크기(SPLASH_TILE_FRACTION 참고).
             val loc = IntArray(2).also { icon.getLocationInWindow(it) }
             val tile = icon.width * SPLASH_TILE_FRACTION
             val cx = loc[0] + icon.width / 2f
@@ -154,8 +154,12 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        /** splash_icon.xml에서 타일이 캔버스에서 차지하는 비율(48/108). */
-        private const val SPLASH_TILE_FRACTION = 48f / 108f
+        /**
+         * 화면에서 타일 폭 ÷ 아이콘 뷰 폭. splash_icon.xml의 타일은 108 중 48이지만, 시스템이 시작 화면
+         * 아이콘을 108 중 72 영역 기준으로 1.5배 키워 그리므로 실제 비율은 48/72다.
+         * v2.9~v2.12는 48/108로 계산해 착지 순간 타일이 헤더 로고보다 약 1.5배 컸다(S25 녹화로 확인).
+         */
+        private const val SPLASH_TILE_FRACTION = 48f / 72f
 
         const val EXTRA_CURRENCY = "com.pricehere.app.CURRENCY"
         const val EXTRA_AMOUNT = "com.pricehere.app.AMOUNT"

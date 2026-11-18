@@ -62,6 +62,8 @@ data class UiState(
     val outcome: RefreshOutcome? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val widgetPalette: WidgetPalette = WidgetPalette.APP,
+    /** 홈 통화 칸에 놓인 통화(1~4개, 고른 순서). */
+    val favorites: List<Currency> = Currency.DEFAULT_FAVORITES,
     val update: UpdateInfo? = null,
     val historyRange: HistoryRange = HistoryRange.MONTH,
     val history: List<RatePoint> = emptyList(),
@@ -156,6 +158,7 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
             saved = store.load(),
             themeMode = settings.themeMode(),
             widgetPalette = settings.widgetPalette(),
+            favorites = settings.favorites(),
             priceMode = settings.priceMode(),
             showHints = settings.bumpLaunchCount() <= 3,
             input = handle[KEY_INPUT] ?: "",
@@ -176,6 +179,23 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         }
         refresh()
         checkForUpdate()
+    }
+
+    /**
+     * 자주 쓰는 통화 바꾸기. 지금 고른 통화가 빠지면 첫 번째 통화로 옮긴다.
+     * 새로 들어온 통화는 환율이 아직 없으므로 바로 새로 받고, 위젯 통화 칩도 다시 그린다.
+     */
+    fun setFavorites(list: List<Currency>) {
+        val clean = list.distinct().take(Currency.MAX_FAVORITES)
+        if (clean.isEmpty() || clean == _state.value.favorites) return
+        settings.setFavorites(clean)
+        _state.update { it.copy(favorites = clean) }
+        if (_state.value.selected !in clean) select(clean.first())
+        val app = getApplication<android.app.Application>()
+        if (WidgetPrefs.currency(app) !in clean) WidgetPrefs.setCurrency(app, clean.first())
+        WidgetHub.updateAll(app)
+        val missing = clean.any { _state.value.snapshot?.rateOf(it) == null }
+        if (missing) refresh()
     }
 
     /** 위젯 색을 바꾸면 홈 화면에 놓인 위젯을 모두 바로 다시 그린다. */
@@ -270,6 +290,8 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
      */
     fun loadHistory(range: HistoryRange = _state.value.historyRange) {
         val currency = _state.value.selected
+        // 추이 출처(ECB)에 없는 통화는 요청하지 않는다(실패가 뻔하다).
+        if (!currency.hasHistory) return
         _state.update { it.copy(historyRange = range, historyLoading = true) }
         viewModelScope.launch {
             val points = RateHistory.fetch(currency, range)
@@ -320,7 +342,7 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
      */
     fun syncLocalCurrency(country: String): Currency? {
         if (country.isBlank()) return null
-        val target = LocalCurrency.decide(country, settings.lastNetworkCountry(), _state.value.selected)
+        val target = LocalCurrency.decide(country, settings.lastNetworkCountry(), _state.value.selected, _state.value.favorites)
         settings.setLastNetworkCountry(country)
         target ?: return null
         select(target)
@@ -411,6 +433,13 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         val removed = _state.value.saved.firstOrNull { it.id == id }
         _state.update { it.copy(saved = store.remove(id)) }
         return removed
+    }
+
+    /** 저장 항목 고치기(이름·금액·결제 수단). 금액이 0 이하면 무시한다. */
+    fun updateSaved(item: SavedItem) {
+        if (item.amount <= 0.0) return
+        _state.update { it.copy(saved = store.update(item)) }
+        WidgetHub.updateAll(getApplication())
     }
 
     fun restoreSaved(item: SavedItem) {

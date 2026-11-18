@@ -152,8 +152,14 @@ private fun PriceSheet(
                     )
                     Spacer(Modifier.height(Space.s))
                 }
+                // 홈 통화 칸과 같은 통화만. 글에서 읽은 통화가 칸 밖이면 맨 앞에 붙인다(최대 4칸).
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val pills = remember(currency) {
+                    val fav = SettingsStore(context).favorites()
+                    (if (currency in fav) fav else listOf(currency) + fav).take(Currency.MAX_FAVORITES)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                    Currency.entries.forEach { c ->
+                    pills.forEach { c ->
                         Pill(text = "${c.flag} ${c.code}", selected = c == currency) { currency = c }
                     }
                 }

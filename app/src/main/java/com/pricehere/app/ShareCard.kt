@@ -168,9 +168,6 @@ object ShareCard {
         c.drawText("github.com/wjdals988/pricehere", right - 8f, footY + 40f, get)
     }
 
-    /** 카드 한 장에 넣는 항목 수. 넘치면 마지막 줄에 "외 N건"을 적는다. */
-    private const val SAVED_ROWS = 7
-
     /**
      * 저장 목록 카드. 폭 1080에 높이는 항목 수에 맞춰 1080~1700 사이.
      * 위에 제목, 흰 목록 카드, 민트 합계 카드(입국 면세 한도 막대 포함), 맨 아래 서명.
@@ -179,21 +176,21 @@ object ShareCard {
         if (items.isEmpty()) return null
         val rates = snapshot?.rates.orEmpty()
         fun rateOf(item: SavedItem) = rates[item.currencyCode] ?: item.rateAtSave
-        val shown = items.take(if (items.size > SAVED_ROWS) SAVED_ROWS - 1 else SAVED_ROWS)
-        val rest = items.size - shown.size
         val total = items.sumOf { it.krwAt(rateOf(it)) }
         val usd = dutyFreeUsd(items, rates)
-
-        val rowH = 112f
+        // 배치 계산은 CardLayout(단위 테스트 대상)에서.
+        val layout = CardLayout.saved(items.size, hasDutyFree = usd != null)
+        val shown = items.take(layout.shown)
+        val rest = layout.rest
+        val rowH = CardLayout.ROW_H
         val listRows = shown.size + if (rest > 0) 1 else 0
         val left = 72f
         val right = W - 72f
-        val listTop = 250f
-        val listBottom = listTop + 28f + listRows * rowH + 28f
-        val totalTop = listBottom + 40f
-        val totalH = if (usd != null) 400f else 240f
-        val totalBottom = totalTop + totalH
-        val height = maxOf(1080, (totalBottom + 90f + 150f).toInt())
+        val listTop = CardLayout.LIST_TOP
+        val listBottom = layout.listBottom
+        val totalTop = layout.totalTop
+        val totalBottom = layout.totalBottom
+        val height = layout.height
 
         val bmp = Bitmap.createBitmap(W, height, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
@@ -342,17 +339,15 @@ object ShareCard {
     }
 
     /** 폭을 넘으면 뒤를 "…"로 줄인다(메모처럼 크기를 줄이면 안 되는 글). */
-    private fun ellipsize(text: String, paint: Paint, maxWidth: Float): String {
-        if (paint.measureText(text) <= maxWidth) return text
-        var end = text.length
-        while (end > 1 && paint.measureText(text.substring(0, end) + "…") > maxWidth) end--
-        return text.substring(0, end) + "…"
-    }
+    private fun ellipsize(text: String, paint: Paint, maxWidth: Float): String =
+        CardLayout.ellipsize(text, maxWidth) { paint.measureText(it) }
 
     /** 폭을 넘으면 글자 크기를 줄여 한 줄에 맞춘다. */
     private fun fitText(text: String, paint: Paint, maxWidth: Float) {
-        while (paint.measureText(text) > maxWidth && paint.textSize > 20f) {
-            paint.textSize *= 0.94f
+        val probe = Paint(paint)
+        paint.textSize = CardLayout.fitSize(text, paint.textSize, maxWidth) { t, size ->
+            probe.textSize = size
+            probe.measureText(t)
         }
     }
 

@@ -97,6 +97,12 @@ class SavedStore(context: Context) {
 
     fun clear(): List<SavedItem> = persist(emptyList())
 
+    /** 고치기. id가 같은 항목을 바꾼다(저장 시각·당시 환율은 그대로). 메모가 비면 기본 이름. */
+    fun update(item: SavedItem): List<SavedItem> {
+        val fixed = item.copy(memo = item.memo.trim().ifBlank { "이름 없는 항목" })
+        return persist(load().map { if (it.id == fixed.id) fixed else it })
+    }
+
     private fun persist(items: List<SavedItem>): List<SavedItem> {
         val array = JSONArray()
         items.forEach { item ->
