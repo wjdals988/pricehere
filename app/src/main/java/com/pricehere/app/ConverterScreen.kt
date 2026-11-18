@@ -136,6 +136,7 @@ fun ConverterScreen(
     var showTip by remember { mutableStateOf(false) }
     var showRefund by remember { mutableStateOf(false) }
     var showShare by remember { mutableStateOf(false) }
+    var showDcc by remember { mutableStateOf(false) }
 
     // 신선도 문구를 30초마다 다시 계산한다.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -233,6 +234,10 @@ fun ConverterScreen(
                 Column {
                     Spacer(Modifier.height(Space.m))
                     PaymentSegments(state = state, onPick = viewModel::setPriceMode)
+                    // 카드 결제일 때만 한 줄. 원화 결제(DCC)를 고르면 손해라는 것만 짧게 알리고, 누르면 자세히.
+                    AnimatedVisibility(visible = state.priceMode == PriceMode.CARD) {
+                        DccHint(state = state, onOpen = { showDcc = true })
+                    }
                     Spacer(Modifier.height(Space.l))
                     RateRow(state = state, now = now, onRefresh = { viewModel.refresh(manual = true) })
                     Spacer(Modifier.height(Space.m))
@@ -269,6 +274,10 @@ fun ConverterScreen(
                 },
             )
         }
+    }
+
+    if (showDcc) {
+        DccSheet(onDismiss = { showDcc = false })
     }
 
     if (showShare) {
@@ -863,6 +872,47 @@ private fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
                 }
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------- DCC 안내
+
+/**
+ * 해외 카드 결제 때 단말기가 "원화로 결제할까요?"라고 물으면 현지 통화를 골라야 한다.
+ * 원화 결제(DCC)는 약 3~8%를 더 내므로, 지금 카드 금액 기준으로 더 나가는 원화를 범위로 보여준다.
+ */
+@Composable
+private fun DccHint(state: UiState, onOpen: () -> Unit) {
+    val won = state.krwFor(PriceMode.CARD)?.takeIf { it > 0 }
+    val text = if (won != null) {
+        "현지 통화로 결제 · 원화 결제 시 약 +${format(won * 0.03, 0)}~${format(won * 0.08, 0)}원"
+    } else {
+        "현지 통화로 결제 · 원화 결제(DCC)는 약 3~8% 더 비쌈"
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = Space.s)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .semantics { contentDescription = "원화 결제 주의 안내 열기" },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = Num.FEATURES),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = "ⓘ",
+            fontSize = Num.glyph,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -79,6 +79,9 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
     var askClear by remember { mutableStateOf(false) }
     var picking by remember { mutableStateOf(false) }
     val picked = remember { mutableStateListOf<Long>() }
+    // 고른 항목을 카드로 보여주는 공유 시트. null이면 닫힘.
+    var shareItems by remember { mutableStateOf<List<SavedItem>?>(null) }
+    shareItems?.let { SavedShareSheet(items = it, snapshot = state.snapshot, onDismiss = { shareItems = null }) }
     val items = state.saved
 
     // 목록이 비면 선택 모드를 유지할 이유가 없다.
@@ -173,11 +176,7 @@ fun SavedScreen(viewModel: RatesViewModel, state: UiState, snackbar: SnackbarHos
             ShareSelectedButton(
                 count = picked.size,
                 onShare = {
-                    shareText(
-                        context,
-                        buildSavedShareText(items.filter { it.id in picked }, state.snapshot),
-                        "저장 목록 공유",
-                    )
+                    shareItems = items.filter { it.id in picked }
                     picking = false
                     picked.clear()
                 },

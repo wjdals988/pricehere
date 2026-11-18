@@ -1,6 +1,7 @@
 package com.pricehere.app
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.LaunchedEffect
 import kotlin.math.roundToInt
@@ -667,19 +668,37 @@ fun ToolChip(
 
 // ---------------------------------------------------------------- 공유
 
-/**
- * 공유 방법을 고르는 시트. 위에 실제로 보낼 이미지 카드를 미리 보여주고,
- * 이미지(글 함께) 또는 글만 보낼 수 있다. 결과가 없으면 글 공유만 남긴다.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+/** 환산 결과 공유 시트. 실제로 보낼 가격표 카드를 미리 보여준다. */
 @Composable
 fun ShareSheet(state: UiState, onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val text = remember(state) { buildConversionShareText(state) }
     val card = remember(state.result, state.input, state.priceMode, state.selected, state.foreignToKrw, state.snapshot) {
         ShareCard.render(context, state)
     }
+    ImageShareSheet(title = "환산 결과 공유", card = card, text = text, onDismiss = onDismiss)
+}
+
+/** 저장 목록 공유 시트. 고른 항목과 합계·면세 한도를 카드 한 장에 담는다. */
+@Composable
+fun SavedShareSheet(items: List<SavedItem>, snapshot: Snapshot?, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val text = remember(items, snapshot) { buildSavedShareText(items, snapshot) }
+    val card = remember(items, snapshot) { ShareCard.renderSaved(context, items, snapshot) }
+    ImageShareSheet(title = "저장 목록 공유", card = card, text = text, onDismiss = onDismiss)
+}
+
+/**
+ * 공유 방법을 고르는 시트. 위에 실제 이미지를 미리 보여주고,
+ * 이미지 공유(글 함께) · 사진에 저장 · 글만 공유 중에 고른다. 이미지가 없으면 글 공유만 남긴다.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ImageShareSheet(title: String, card: android.graphics.Bitmap?, text: String, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val view = rememberView()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var saved by remember { mutableStateOf(false) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -693,7 +712,7 @@ fun ShareSheet(state: UiState, onDismiss: () -> Unit) {
                 .padding(bottom = 20.dp),
         ) {
             Text(
-                text = "환산 결과 공유",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -706,38 +725,60 @@ fun ShareSheet(state: UiState, onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(Space.l))
             if (card != null) {
+                // 긴 저장 목록 카드도 시트 안에 들어오도록 높이를 제한한다.
                 androidx.compose.foundation.Image(
                     bitmap = card.asImageBitmap(),
                     contentDescription = "공유할 이미지 미리보기",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxWidth(0.72f)
+                        .heightIn(max = 420.dp)
                         .align(Alignment.CenterHorizontally)
                         .clip(RoundedCornerShape(18.dp)),
                 )
                 Spacer(Modifier.height(Space.l))
-                ShareAction(
-                    label = "이미지로 공유",
-                    primary = true,
-                ) {
+                ShareAction(label = "이미지로 공유", primary = true, modifier = Modifier.fillMaxWidth()) {
                     onDismiss()
                     ShareCard.share(context, card, text)
                 }
                 Spacer(Modifier.height(Space.s))
-            }
-            ShareAction(label = "글로 공유", primary = card == null) {
-                onDismiss()
-                shareText(context, text, "환산 결과 공유")
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    if (ShareCard.canSaveToGallery) {
+                        ShareAction(
+                            label = if (saved) "사진에 저장됨" else "사진에 저장",
+                            primary = false,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            if (!saved) {
+                                saved = ShareCard.saveToGallery(context, card)
+                                if (saved) {
+                                    Haptic.confirm(view)
+                                } else {
+                                    android.widget.Toast.makeText(context, "사진에 저장하지 못했습니다", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                    ShareAction(label = "글로 공유", primary = false, modifier = Modifier.weight(1f)) {
+                        onDismiss()
+                        shareText(context, text, title)
+                    }
+                }
+            } else {
+                ShareAction(label = "글로 공유", primary = true, modifier = Modifier.fillMaxWidth()) {
+                    onDismiss()
+                    shareText(context, text, title)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ShareAction(label: String, primary: Boolean, onClick: () -> Unit) {
+private fun ShareAction(label: String, primary: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .height(52.dp)
             .clip(shape)
             .then(
@@ -756,5 +797,62 @@ private fun ShareAction(label: String, primary: Boolean, onClick: () -> Unit) {
             fontWeight = FontWeight.Bold,
             color = if (primary) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+// ---------------------------------------------------------------- DCC
+
+/** 원화 결제(DCC) 주의 안내. 카드 결제 줄의 한 줄 안내를 누르면 열린다. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DccSheet(onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = Space.gutter)
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                text = "원화 결제(DCC) 주의",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(Space.m))
+            listOf(
+                "해외 가맹점이나 ATM이 원화(KRW)로 결제할지 물으면 현지 통화를 고릅니다.",
+                "원화로 결제하면 가맹점이 정한 환율에 수수료가 한 번 더 붙어, 보통 결제 금액의 3~8%를 더 냅니다.",
+                "영수증에 KRW 금액이 찍혀 있으면 원화 결제가 된 것입니다. 바로 취소하고 현지 통화로 다시 결제할 수 있습니다.",
+                "카드사 앱의 '해외 원화결제 차단'을 켜 두면 실수로 원화 결제되는 것을 막을 수 있습니다.",
+            ).forEach { line ->
+                Row(Modifier.padding(vertical = 5.dp)) {
+                    Text(
+                        text = "·",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(14.dp),
+                    )
+                    Text(
+                        text = line,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            Spacer(Modifier.height(Space.m))
+            Text(
+                text = "앱의 카드 금액은 현지 통화로 결제했을 때 기준입니다.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
