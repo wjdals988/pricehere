@@ -133,3 +133,31 @@ fun FlyOverlay(fly: FlyToSaved, modifier: Modifier = Modifier) {
         }
     }
 }
+
+// ---------------------------------------------------------------- 시작 화면 → 헤더 로고 착지
+
+/**
+ * 시작 화면(Android 12+)의 ₩ 타일을 헤더 로고 자리로 날려 앉히기 위한 연결점.
+ * 헤더가 자기 로고 위치(창 기준 px)를 적어 두고, MainActivity가 시작 화면을 닫을 때 그 자리로 날린다.
+ * 착지하면 done이 true가 되고, 홈 화면의 나머지가 아래에서 떠오른다.
+ */
+object SplashGate {
+    var headerTile: android.graphics.RectF? = null
+    val done = mutableStateOf(true)
+}
+
+/** 시작 화면이 끝난 뒤 떠오르는 등장. delay로 위에서 아래 순서를 만든다. */
+@Composable
+fun Modifier.introRise(delayMillis: Int): Modifier {
+    val done by SplashGate.done
+    val p by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (done) 1f else 0f,
+        animationSpec = tween(420, delayMillis = if (done) delayMillis else 0, easing = FlyEasing),
+        label = "intro",
+    )
+    val lift = with(LocalDensity.current) { 14.dp.toPx() }
+    return graphicsLayer {
+        alpha = p
+        translationY = (1f - p) * lift
+    }
+}

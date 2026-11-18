@@ -355,7 +355,7 @@ private fun LicenseSheet(onDismiss: () -> Unit) {
             Spacer(Modifier.height(Space.s))
             LicenseText("$LICENSE_MIT (Octicons)", R.raw.license_octicons_mit)
             Spacer(Modifier.height(Space.s))
-            LicenseText("OFL 1.1 (Archivo)", R.raw.license_archivo_ofl)
+            LicenseText("OFL 1.1 (Geist)", R.raw.license_geist_ofl)
         }
     }
 }
