@@ -1,5 +1,6 @@
 package com.pricehere.app
 
+import androidx.compose.foundation.layout.heightIn
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -123,7 +124,8 @@ internal fun Header(
     onVersionClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(72.dp),
+        // 큰 글자에서 부제가 잘리지 않도록 최소 높이만 둔다.
+        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 런처 아이콘과 같은 마크(입체 C안). 시작 화면의 타일이 이 자리로 날아와 앉는다(SplashGate).
@@ -214,6 +216,7 @@ internal fun GlassIconButton(
 
 @Composable
 internal fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
+    val large = isLargeFont()
     val view = rememberView()
     SlidingSegments(count = Currency.entries.size, selected = Currency.entries.indexOf(selected)) {
         Currency.entries.forEach { currency ->
@@ -232,12 +235,13 @@ internal fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) 
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // 국기는 고르지 않은 칸에서 살짝 흐리게 둔다. 고른 칸이 먼저 눈에 들어오게.
-                    Text(
+                    // 큰 글자에서는 칸이 모자라 국기를 빼고 코드만.
+                    if (!large) Text(
                         text = currency.flag,
                         fontSize = Num.flag,
                         modifier = Modifier.alpha(if (on) 1f else 0.75f),
                     )
-                    Spacer(Modifier.width(5.dp))
+                    if (!large) Spacer(Modifier.width(5.dp))
                     Text(
                         text = currency.code,
                         style = MaterialTheme.typography.labelLarge,

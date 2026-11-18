@@ -119,6 +119,7 @@ import kotlinx.coroutines.delay
 /** 결제 수단 버튼 안에 그 수단으로 낼 원화를 같이 보여준다. 하나씩 눌러 보지 않아도 비교된다. */
 @Composable
 internal fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
+    val large = isLargeFont()
     val view = rememberView()
     SlidingSegments(count = PriceMode.entries.size, selected = PriceMode.entries.indexOf(state.priceMode)) {
         PriceMode.entries.forEach { mode ->
@@ -136,7 +137,8 @@ internal fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = if (fee > 0) "${mode.shortLabel} +${format(fee, 2)}%" else mode.shortLabel,
+                    // 큰 글자에서는 수수료율을 빼고 이름만. 금액 줄이 있어 차이는 그대로 보인다.
+                    text = if (fee > 0 && !large) "${mode.shortLabel} +${format(fee, 2)}%" else mode.shortLabel,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,

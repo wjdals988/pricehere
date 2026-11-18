@@ -278,7 +278,8 @@ internal fun PriceTag(
                     .clip(CircleShape)
                     .background(if (dark) TealGradient else InkGradient)
                     .clickable { activate(!foreignActive) }
-                    .semantics { contentDescription = if (foreignActive) "원화 입력" else "$code 입력" },
+                    // 화면 읽기에서 무엇이 바뀌는지 분명하게: 누르면 입력할 통화를 말한다.
+                    .semantics { contentDescription = if (foreignActive) "원화로 입력" else "${code}로 입력" },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(Modifier.rotate(swapTurn)) { SwapIcon(Color.White, sizeDp = 17) }
@@ -392,6 +393,7 @@ internal fun PriceTag(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            val large = isLargeFont()
             state.quickAmounts.take(4).forEach { value ->
                 Box(
                     modifier = Modifier
@@ -403,7 +405,8 @@ internal fun PriceTag(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "+" + format(value.toDouble(), 0),
+                        // 큰 글자에서는 "+1만"처럼 줄여 버튼 안에 들어가게.
+                        text = "+" + if (large) compactWon(value) else format(value.toDouble(), 0),
                         style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = Num.FEATURES),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -466,4 +469,11 @@ internal fun ClearIcon(tint: Color) {
         drawLine(tint, Offset(0f, 0f), Offset(size.width, size.height), w, StrokeCap.Round)
         drawLine(tint, Offset(size.width, 0f), Offset(0f, size.height), w, StrokeCap.Round)
     }
+}
+
+/** 큰 글자용 짧은 금액. 10,000 → 1만, 500,000 → 50만, 5,000 → 5천, 500 → 500. */
+internal fun compactWon(value: Long): String = when {
+    value >= 10_000 && value % 10_000 == 0L -> "${value / 10_000}만"
+    value >= 1_000 && value % 1_000 == 0L -> "${value / 1_000}천"
+    else -> format(value.toDouble(), 0)
 }
