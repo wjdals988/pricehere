@@ -152,8 +152,12 @@ object ShareCard {
         fitText(source, sourcePaint, right - left - 16f)
         c.drawText(source, left + 8f, infoY + 58f, sourcePaint)
 
-        // ---------------- 서명(앱 로고 + 이름 + 받는 곳)
-        val footY = H - 120f
+        signature(c, left, right, H - 120f)
+        return bmp
+    }
+
+    /** 서명: 앱 로고 + 이름 + 받는 곳. footY는 로고 세로 중심. */
+    private fun signature(c: Canvas, left: Float, right: Float, footY: Float) {
         val tile = 96f
         wonTile(c, left + 8f, footY - tile / 2f, tile)
         val nameX = left + 8f + tile + 28f
@@ -162,9 +166,136 @@ object ShareCard {
         val get = korean(30f, MUTED, bold = false).apply { textAlign = Paint.Align.RIGHT }
         c.drawText("Android 앱 받기", right - 8f, footY - 6f, korean(32f, TEAL, bold = true).apply { textAlign = Paint.Align.RIGHT })
         c.drawText("github.com/wjdals988/pricehere", right - 8f, footY + 40f, get)
+    }
 
+    /** 카드 한 장에 넣는 항목 수. 넘치면 마지막 줄에 "외 N건"을 적는다. */
+    private const val SAVED_ROWS = 7
+
+    /**
+     * 저장 목록 카드. 폭 1080에 높이는 항목 수에 맞춰 1080~1700 사이.
+     * 위에 제목, 흰 목록 카드, 민트 합계 카드(입국 면세 한도 막대 포함), 맨 아래 서명.
+     */
+    fun renderSaved(context: Context, items: List<SavedItem>, snapshot: Snapshot?): Bitmap? {
+        if (items.isEmpty()) return null
+        val rates = snapshot?.rates.orEmpty()
+        fun rateOf(item: SavedItem) = rates[item.currencyCode] ?: item.rateAtSave
+        val shown = items.take(if (items.size > SAVED_ROWS) SAVED_ROWS - 1 else SAVED_ROWS)
+        val rest = items.size - shown.size
+        val total = items.sumOf { it.krwAt(rateOf(it)) }
+        val usd = dutyFreeUsd(items, rates)
+
+        val rowH = 112f
+        val listRows = shown.size + if (rest > 0) 1 else 0
+        val left = 72f
+        val right = W - 72f
+        val listTop = 250f
+        val listBottom = listTop + 28f + listRows * rowH + 28f
+        val totalTop = listBottom + 40f
+        val totalH = if (usd != null) 400f else 240f
+        val totalBottom = totalTop + totalH
+        val height = maxOf(1080, (totalBottom + 90f + 150f).toInt())
+
+        val bmp = Bitmap.createBitmap(W, height, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val geist = ResourcesCompat.getFont(context, R.font.geist) ?: Typeface.DEFAULT
+        c.drawColor(BG)
+        glow(c, 260f, 380f, 620f, 0x4217A08C)
+        glow(c, 1010f, height * 0.62f, 460f, 0x4D7FE0C3)
+
+        // 제목
+        c.drawText("저장한 금액", left + 8f, 150f, korean(60f, INK, bold = true, heavy = true))
+        val sub = "${items.size}건 · 현재 환율 기준" +
+            (snapshot?.let { " · ${DAY_STAMP.format(Instant.ofEpochMilli(it.quotedAtMillis))} 고시" } ?: "")
+        c.drawText(sub, left + 8f, 206f, korean(34f, MUTED, bold = false))
+
+        // 목록 카드
+        val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); setShadowLayer(40f, 0f, 18f, 0x2E0B3C32) }
+        c.drawRoundRect(RectF(left, listTop, right, listBottom), 56f, 56f, shadow)
+        val pad = 56f
+        val divider = Paint().apply { color = 0xFFE6ECEA.toInt(); strokeWidth = 2f }
+        var y = listTop + 28f
+        shown.forEachIndexed { i, item ->
+            val krw = item.krwAt(rateOf(item))
+            val wonText = format(krw, 0) + "원"
+            val wonPaint = number(geist, 46f, INK, 600).apply { textAlign = Paint.Align.RIGHT }
+            val wonW = wonPaint.measureText(wonText)
+            val memo = korean(40f, INK, bold = true)
+            val memoText = ellipsize(item.memo, memo, right - left - pad * 2 - wonW - 32f)
+            c.drawText(memoText, left + pad, y + 52f, memo)
+            val detail = "${format(item.amount, item.currency.decimals)} ${item.currencyCode}" +
+                (if (item.mode != PriceMode.BASE) " · ${item.mode.shortLabel}" else "")
+            c.drawText(detail, left + pad, y + 94f, number(geist, 30f, MUTED, 500))
+            c.drawText(wonText, right - pad, y + 70f, wonPaint)
+            if (i < listRows - 1) c.drawLine(left + pad, y + rowH, right - pad, y + rowH, divider)
+            y += rowH
+        }
+        if (rest > 0) {
+            c.drawText("외 ${rest}건", left + pad, y + 66f, korean(36f, MUTED, bold = true))
+        }
+
+        // 합계 카드
+        val totalRect = RectF(left, totalTop, right, totalBottom)
+        c.drawRoundRect(totalRect, 56f, 56f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, totalTop, 0f, totalBottom, MINT_TOP, MINT_BOTTOM, Shader.TileMode.CLAMP)
+            setShadowLayer(40f, 0f, 18f, 0x2E0B3C32)
+        })
+        c.drawText("합계", left + pad, totalTop + 84f, korean(38f, 0xB30B3C32.toInt(), bold = true))
+        val totalText = format(total, 0)
+        val big = number(geist, 120f, DEEP, 700)
+        fitText(totalText, big, right - left - pad * 2 - 90f)
+        c.drawText(totalText, left + pad, totalTop + 200f, big)
+        c.drawText("원", left + pad + big.measureText(totalText) + 12f, totalTop + 200f, korean(52f, DEEP, bold = true))
+        if (usd != null) {
+            val over = usd > DUTY_FREE_USD
+            val alert = 0xFFE12D39.toInt()
+            val barTop = totalTop + 296f
+            val barL = left + pad
+            val barR = right - pad
+            val label = korean(30f, 0xB30B3C32.toInt(), bold = true)
+            c.drawText("입국 면세 한도", barL, barTop - 14f, label)
+            val usdText = "$" + format(usd, 0) + " / $" + format(DUTY_FREE_USD, 0)
+            c.drawText(usdText, barR, barTop - 14f, number(geist, 32f, if (over) alert else DEEP, 700).apply { textAlign = Paint.Align.RIGHT })
+            val track = RectF(barL, barTop + 8f, barR, barTop + 30f)
+            c.drawRoundRect(track, 11f, 11f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x1F0B3C32 })
+            val frac = (usd / DUTY_FREE_USD).toFloat().coerceIn(0f, 1f)
+            if (frac > 0f) {
+                val fill = RectF(barL, barTop + 8f, barL + (barR - barL) * frac, barTop + 30f)
+                c.drawRoundRect(fill, 11f, 11f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    if (over) color = alert else shader = LinearGradient(fill.left, 0f, fill.right, 0f, TEAL_HI, TEAL, Shader.TileMode.CLAMP)
+                })
+            }
+            val note = if (over) "${format(usd - DUTY_FREE_USD, 0)}달러 초과 · 1인 기준" else "${format(DUTY_FREE_USD - usd, 0)}달러 남음 · 1인 기준"
+            c.drawText(note, barL, barTop + 70f, korean(28f, if (over) alert else 0xB30B3C32.toInt(), bold = false))
+        }
+
+        signature(c, left, right, height - 120f)
         return bmp
     }
+
+    /** 사진 앱(Pictures/여긴얼마)에 PNG로 저장한다. Android 10 미만은 권한이 필요해 지원하지 않는다. */
+    fun saveToGallery(context: Context, bitmap: Bitmap): Boolean {
+        if (Build.VERSION.SDK_INT < 29) return false
+        val resolver = context.contentResolver
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "pricehere_${System.currentTimeMillis()}.png")
+            put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/여긴얼마")
+            put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+        return runCatching {
+            resolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } ?: error("no stream")
+            values.clear()
+            values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            true
+        }.getOrElse {
+            resolver.delete(uri, null, null)
+            false
+        }
+    }
+
+    val canSaveToGallery: Boolean get() = Build.VERSION.SDK_INT >= 29
 
     /** 이미지와 글(앱 받기 링크 포함)을 함께 공유한다. 글을 버리는 앱은 이미지만 보낸다. */
     fun share(context: Context, bitmap: Bitmap, text: String) {
@@ -208,6 +339,14 @@ object ShareCard {
         textSize = size
         this.color = color
         letterSpacing = if (heavy) -0.02f else 0f
+    }
+
+    /** 폭을 넘으면 뒤를 "…"로 줄인다(메모처럼 크기를 줄이면 안 되는 글). */
+    private fun ellipsize(text: String, paint: Paint, maxWidth: Float): String {
+        if (paint.measureText(text) <= maxWidth) return text
+        var end = text.length
+        while (end > 1 && paint.measureText(text.substring(0, end) + "…") > maxWidth) end--
+        return text.substring(0, end) + "…"
     }
 
     /** 폭을 넘으면 글자 크기를 줄여 한 줄에 맞춘다. */

@@ -10,6 +10,16 @@ data class Release(
 /** 최신 버전이 맨 위. 배포할 때마다 여기에 한 블록씩 쌓는다. */
 val CHANGELOG: List<Release> = listOf(
     Release(
+        version = "2.12.0",
+        date = "2026-11-18",
+        headline = "저장 목록 카드와 원화 결제 안내",
+        notes = listOf(
+            "저장 목록도 합계와 입국 면세 한도를 담은 이미지 카드로 공유합니다",
+            "공유 이미지를 사진 앱에 바로 저장할 수 있습니다(Android 10 이상)",
+            "카드 결제를 고르면 원화 결제(DCC) 때 더 나가는 금액을 한 줄로 알려줍니다",
+        ),
+    ),
+    Release(
         version = "2.11.0",
         date = "2026-11-18",
         headline = "면세 게이지와 위젯 색을 다듬었습니다",
