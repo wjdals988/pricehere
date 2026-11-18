@@ -21,10 +21,37 @@ class FavoritesTest {
         assertEquals(100, Currency.IDR.quoteUnit)
     }
 
-    @Test fun `늘린 통화는 환급과 팁 자료가 없다`() {
-        assertTrue(Currency.TWD.basicOnly)
-        assertNull(Currency.TWD.taxRefund)
-        assertTrue(!Currency.JPY.basicOnly)
+    @Test fun `v2_14부터 모든 통화에 팁 자료가 있다`() {
+        assertTrue(Currency.entries.none { it.basicOnly })
+    }
+
+    @Test fun `환급 제도가 없는 나라는 null`() {
+        listOf(Currency.HKD, Currency.MYR, Currency.NZD, Currency.CAD, Currency.GBP, Currency.USD)
+            .forEach { assertNull(it.code, it.taxRefund) }
+    }
+
+    @Test fun `대만 환급은 5퍼센트에 2000대만달러 이상`() {
+        val r = Currency.TWD.taxRefund!!
+        assertEquals(5.0, r.vatPercent, 0.0)
+        assertTrue(r.belowMinimum(1_999.0))
+        assertTrue(!r.belowMinimum(2_000.0))
+    }
+
+    @Test fun `베트남 부가세는 2026년 말까지 8퍼센트, 이후 10퍼센트`() {
+        assertEquals(8.0, Currency.VND.taxRefundOn(java.time.LocalDate.of(2026, 12, 31))!!.vatPercent, 0.0)
+        assertEquals(10.0, Currency.VND.taxRefundOn(java.time.LocalDate.of(2027, 1, 1))!!.vatPercent, 0.0)
+    }
+
+    @Test fun `중국 실수령은 결제 금액의 약 9퍼센트`() {
+        val r = Currency.CNY.taxRefund!!
+        assertEquals(9.0, r.estimatedRefund(1_000.0) / 10.0, 0.1)
+    }
+
+    @Test fun `팁 문화 없음 표시 규칙`() {
+        assertTrue(Currency.JPY.tip!!.noCulture)
+        assertTrue(Currency.SGD.tip!!.noCulture)
+        assertTrue(!Currency.HKD.tip!!.noCulture)
+        assertEquals(listOf(15, 18, 20), Currency.CAD.tip!!.suggested)
     }
 
     @Test fun `통신망 국가가 통화 칸에 있으면 그 통화로`() {

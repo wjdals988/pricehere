@@ -154,10 +154,12 @@ internal fun ToolTiles(
         else -> "부가세 ${format(refund.vatPercent, 0)}%"
     }
 
-    val tip = state.selected.tip?.suggested
+    val tipGuide = state.selected.tip
+    val tip = tipGuide?.suggested
     val tipValue = when {
         tip == null -> "자료 없음"
-        tip.firstOrNull() == 0 -> "팁 문화 없음"
+        tipGuide.noCulture -> "팁 문화 없음"
+        tip.size == 1 -> "${tip.first()}%"
         else -> "${tip.first()}~${tip.last()}%"
     }
 
