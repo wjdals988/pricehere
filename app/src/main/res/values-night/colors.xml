@@ -17,4 +17,5 @@
     <color name="w_key_pressed">#FF3A4844</color>
     <color name="w_key_op_pressed">#FF286154</color>
     <color name="w_stale">#FFFF8A8F</color>
+    <color name="splash_bg">#FF0A0F0F</color>
 </resources>

@@ -2,6 +2,10 @@ package com.pricehere.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.ViewTreeObserver
+import android.view.View
+import android.os.SystemClock
+import android.os.Build
 import android.telephony.TelephonyManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -30,6 +34,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,12 +59,35 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) holdSplash()
         if (savedInstanceState == null) handleExternal(intent)
         setContent {
             val state by viewModel.state.collectAsState()
             PriceHereTheme(state.themeMode) {
                 AppShell(viewModel, state)
             }
+        }
+    }
+
+    /**
+     * 시작 화면의 ₩ 그리기(약 0.5초)가 첫 화면에 잘리지 않도록 최대 450ms만 붙잡고,
+     * 사라질 때는 아이콘이 살짝 커지며 흐려진다. Android 12 미만은 시작 화면 API가 없어 그대로 둔다.
+     */
+    private fun holdSplash() {
+        if (Build.VERSION.SDK_INT < 31) return
+        val start = SystemClock.uptimeMillis()
+        val content = findViewById<View>(android.R.id.content)
+        content.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (SystemClock.uptimeMillis() - start < 450) return false
+                content.viewTreeObserver.removeOnPreDrawListener(this)
+                return true
+            }
+        })
+        splashScreen.setOnExitAnimationListener { splash ->
+            val icon = splash.iconView
+            splash.animate().alpha(0f).setDuration(220).withEndAction { splash.remove() }.start()
+            icon?.animate()?.scaleX(1.12f)?.scaleY(1.12f)?.setDuration(220)?.start()
         }
     }
 
@@ -115,12 +144,20 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
     // 키보드가 떠 있으면 탭 바를 숨긴다. 연산자 줄이 그 자리에 붙는다.
     val imeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
 
+    // 저장 태그가 날아갈 곳(저장 탭)과, 탭 바 뒤로 흐리게 비칠 화면 내용.
+    val fly = remember { FlyToSaved() }
+    LaunchedEffect(imeVisible) { if (imeVisible) fly.target = null }
+    val backdropLayer = rememberGraphicsLayer()
+    val backdrop = remember(backdropLayer) { Backdrop(backdropLayer) }
+
+    CompositionLocalProvider(LocalFlyToSaved provides fly) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = NavClearance - 16.dp)) },
     ) { inset ->
         // consume 해 두면 홈 화면의 imePadding 이 시스템 내비게이션 높이를 빼고 키보드 위에 딱 붙는다.
         Box(Modifier.fillMaxSize().padding(inset).consumeWindowInsets(inset)) {
+            Box(Modifier.fillMaxSize().recordBackdrop(backdrop)) {
             when (tab) {
                 Tab.HOME -> ConverterScreen(
                     viewModel = viewModel,
@@ -140,6 +177,7 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
                     onVersionOpened = { openVersion = false },
                 )
             }
+            }
             // 떠 있는 글래스 탭 바. 내용이 그 뒤로 비쳐 지나간다.
             AnimatedVisibility(
                 visible = !imeVisible,
@@ -149,12 +187,17 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
             ) {
                 GlassTabBar(
                     current = tab,
-                    savedCount = state.saved.size,
+                    // 날아가는 중인 태그는 아직 세지 않는다. 도착하는 순간 숫자가 올라가며 배지가 튄다.
+                    savedCount = (state.saved.size - fly.flights.size).coerceAtLeast(0),
                     hasUpdate = state.hasUpdate,
                     onSelect = { tab = it },
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                    backdrop = backdrop,
+                    onSavedAnchor = { if (!imeVisible) fly.target = it },
                 )
             }
+            FlyOverlay(fly)
         }
+    }
     }
 }

@@ -18,4 +18,6 @@
     <color name="w_key_pressed">#FFE0E8E5</color>
     <color name="w_key_op_pressed">#FFA9D6CA</color>
     <color name="w_stale">#FFDC3545</color>
+    <!-- 시작 화면 바탕. 앱 화면 바탕(Theme.kt background)과 같게 둬서 넘어갈 때 색이 튀지 않는다. -->
+    <color name="splash_bg">#FFEDF1F0</color>
 </resources>

@@ -12,6 +12,10 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -118,6 +122,13 @@ fun ConverterScreen(
     val haptic = LocalHapticFeedback.current
     val amountFocus = remember { FocusRequester() }
     var askMemo by remember { mutableStateOf(false) }
+    // 빠른 금액 버튼으로 바뀐 숫자에만 틱 진동을 준다. 키보드 입력이면 끈다.
+    var rollTicks by remember { mutableStateOf(false) }
+    // 저장 태그가 날아갈 출발점: 가격표의 저장 버튼 중심(창 기준).
+    var saveAnchor by remember { mutableStateOf(Offset.Zero) }
+    val fly = LocalFlyToSaved.current
+    val scope = rememberCoroutineScope()
+    val view = rememberView()
     var showUpdate by remember { mutableStateOf(false) }
     var showTrend by remember { mutableStateOf(false) }
     var showTip by remember { mutableStateOf(false) }
@@ -182,7 +193,12 @@ fun ConverterScreen(
                 resultText = resultText,
                 focusRequester = amountFocus,
                 onFocusChange = { inputFocused = it },
-                onValueChange = viewModel::onInputChange,
+                onValueChange = {
+                    rollTicks = false
+                    viewModel.onInputChange(it)
+                },
+                ticks = rollTicks,
+                saveModifier = Modifier.onGloballyPositioned { saveAnchor = it.boundsInRoot().center },
                 onSwap = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.swap()
@@ -195,8 +211,14 @@ fun ConverterScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     askMemo = true
                 },
-                onAdd = viewModel::addQuickAmount,
-                onClear = viewModel::clearInput,
+                onAdd = {
+                    rollTicks = true
+                    viewModel.addQuickAmount(it)
+                },
+                onClear = {
+                    rollTicks = false
+                    viewModel.clearInput()
+                },
             )
 
             // 입력 중에는 결제 수단 줄도 접는다. 키보드 위 연산자 줄과 겹치면 글자가 비쳐 지저분해진다.
@@ -229,7 +251,10 @@ fun ConverterScreen(
         if (typing) {
             OperatorBar(
                 modifier = Modifier.align(Alignment.BottomCenter).imePadding(),
-                onOperator = viewModel::appendOperator,
+                onOperator = {
+                    rollTicks = false
+                    viewModel.appendOperator(it)
+                },
                 onSave = { askMemo = true },
             )
         }
@@ -273,11 +298,18 @@ fun ConverterScreen(
             onConfirm = { memo ->
                 askMemo = false
                 val ok = viewModel.saveCurrent(memo)
-                Toast.makeText(
-                    context,
-                    if (ok) "저장했습니다" else "금액과 환율을 먼저 확인해 주세요",
-                    Toast.LENGTH_SHORT,
-                ).show()
+                if (!ok) {
+                    Toast.makeText(context, "금액과 환율을 먼저 확인해 주세요", Toast.LENGTH_SHORT).show()
+                } else {
+                    // 키보드가 내려가고 탭 바가 다시 올라온 뒤에 날린다. 날릴 곳이 없으면 글로 알린다.
+                    scope.launch {
+                        delay(320)
+                        if (fly?.launch(saveAnchor) != true) {
+                            Haptic.confirm(view)
+                            Toast.makeText(context, "저장했습니다", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             },
         )
     }
@@ -375,6 +407,7 @@ private fun GlassIconButton(
 
 @Composable
 private fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
+    val view = rememberView()
     SlidingSegments(count = Currency.entries.size, selected = Currency.entries.indexOf(selected)) {
         Currency.entries.forEach { currency ->
             val on = currency == selected
@@ -383,7 +416,10 @@ private fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
                     .weight(1f)
                     .height(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onSelect(currency) }
+                    .clickable {
+                        if (!on) Haptic.segment(view)
+                        onSelect(currency)
+                    }
                     .semantics { contentDescription = currency.koreanName },
                 contentAlignment = Alignment.Center,
             ) {
@@ -423,6 +459,8 @@ private fun PriceTag(
     focusRequester: FocusRequester,
     onFocusChange: (Boolean) -> Unit,
     onValueChange: (String) -> Unit,
+    ticks: Boolean,
+    saveModifier: Modifier,
     onSwap: () -> Unit,
     onCopy: () -> Unit,
     onSave: () -> Unit,
@@ -533,6 +571,7 @@ private fun PriceTag(
                         RollingNumber(
                             text = resultText,
                             style = Num.amount(34).copy(color = MaterialTheme.colorScheme.onSurface),
+                            ticks = ticks,
                         )
                     }
                 }
@@ -618,6 +657,7 @@ private fun PriceTag(
                     RollingNumber(
                         text = resultText,
                         style = Num.amount(size).copy(color = ink, fontWeight = FontWeight.Bold),
+                        ticks = ticks,
                     )
                 } else {
                     AmountField(
@@ -654,7 +694,7 @@ private fun PriceTag(
                     modifier = Modifier.weight(1f),
                 )
                 Row(
-                    modifier = Modifier
+                    modifier = saveModifier
                         .height(36.dp)
                         .clip(Radius.pillShape)
                         .background(TealGradient)
@@ -764,6 +804,7 @@ private fun ClearIcon(tint: Color) {
 /** 결제 수단 버튼 안에 그 수단으로 낼 원화를 같이 보여준다. 하나씩 눌러 보지 않아도 비교된다. */
 @Composable
 private fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
+    val view = rememberView()
     SlidingSegments(count = PriceMode.entries.size, selected = PriceMode.entries.indexOf(state.priceMode)) {
         PriceMode.entries.forEach { mode ->
             val on = mode == state.priceMode
@@ -772,7 +813,10 @@ private fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onPick(mode) }
+                    .clickable {
+                        if (!on) Haptic.segment(view)
+                        onPick(mode)
+                    }
                     .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
