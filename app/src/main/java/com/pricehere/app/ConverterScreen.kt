@@ -135,6 +135,7 @@ fun ConverterScreen(
     var showTrend by remember { mutableStateOf(false) }
     var showTip by remember { mutableStateOf(false) }
     var showRefund by remember { mutableStateOf(false) }
+    var showShare by remember { mutableStateOf(false) }
 
     // 신선도 문구를 30초마다 다시 계산한다.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -174,7 +175,7 @@ fun ConverterScreen(
             AnimatedVisibility(visible = !typing) {
                 Header(
                     hasUpdate = state.hasUpdate,
-                    onShare = { shareText(context, buildConversionShareText(state), "환산 결과 공유") },
+                    onShare = { showShare = true },
                     onVersionClick = onOpenVersion,
                 )
             }
@@ -264,6 +265,10 @@ fun ConverterScreen(
                 onSave = { askMemo = true },
             )
         }
+    }
+
+    if (showShare) {
+        ShareSheet(state = state, onDismiss = { showShare = false })
     }
 
     if (showTrend) {
