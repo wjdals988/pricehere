@@ -307,6 +307,7 @@ private fun FooterLink(text: String, @DrawableRes icon: Int? = null, onClick: ()
 private fun LicenseSheet(onDismiss: () -> Unit) {
     val apache = OPEN_SOURCE.count { it.license == LICENSE_APACHE }
     val mit = OPEN_SOURCE.count { it.license == LICENSE_MIT }
+    val ofl = OPEN_SOURCE.count { it.license == LICENSE_OFL }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -328,7 +329,7 @@ private fun LicenseSheet(onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(Space.xs))
             Text(
-                text = "${OPEN_SOURCE.size}개 · $LICENSE_APACHE ${apache}개, $LICENSE_MIT ${mit}개",
+                text = "${OPEN_SOURCE.size}개 · Apache 2.0 ${apache}개, MIT ${mit}개, OFL ${ofl}개",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -353,6 +354,8 @@ private fun LicenseSheet(onDismiss: () -> Unit) {
             LicenseText(LICENSE_APACHE, R.raw.license_apache_2_0)
             Spacer(Modifier.height(Space.s))
             LicenseText("$LICENSE_MIT (Octicons)", R.raw.license_octicons_mit)
+            Spacer(Modifier.height(Space.s))
+            LicenseText("OFL 1.1 (Archivo)", R.raw.license_archivo_ofl)
         }
     }
 }

@@ -1,7 +1,11 @@
 package com.pricehere.app
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,11 +61,28 @@ object Num {
     /** ▲▼ ℹ 같은 작은 글리프. */
     val glyph = 13.sp
 
+    /**
+     * 금액 숫자 글꼴 Archivo(OFL, assets/licenses/Archivo-OFL.txt).
+     * 시스템 글꼴보다 숫자 획이 단단하고 0·6·9의 속공간이 넓어 큰 금액이 또렷하다.
+     * 가변 글꼴 하나에서 굵기 축만 골라 쓴다. 없는 글자(×÷ 등)는 시스템 글꼴로 넘어간다.
+     */
+    @OptIn(ExperimentalTextApi::class)
+    val family = FontFamily(
+        listOf(500, 600, 700, 800).map { w ->
+            Font(
+                R.font.archivo,
+                weight = FontWeight(w),
+                variationSettings = FontVariation.Settings(FontVariation.weight(w)),
+            )
+        },
+    )
+
     fun amount(size: Int) = TextStyle(
+        fontFamily = family,
         fontSize = size.sp,
         lineHeight = (size + 6).sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-1.2).sp,
+        letterSpacing = (-size * 0.02).sp,
         fontFeatureSettings = FEATURES,
     )
 }

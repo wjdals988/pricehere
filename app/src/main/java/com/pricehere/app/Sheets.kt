@@ -1,6 +1,16 @@
 package com.pricehere.app
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.LaunchedEffect
+import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import java.time.format.DateTimeFormatter
 
 private val AXIS_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("M.d")
+private val PICK_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("M월 d일")
 
 // ---------------------------------------------------------------- 환율 추이
 
@@ -131,6 +142,7 @@ fun TrendSheet(
                 else -> {
                     val unit = currency.quoteUnit
                     val summary = points.summarize()
+                    var scrub by remember(points) { mutableStateOf<Int?>(null) }
                     Box(contentAlignment = Alignment.Center) {
                         Box(modifier = Modifier.alpha(if (loading) 0.3f else 1f)) {
                             LineChart(
@@ -138,6 +150,8 @@ fun TrendSheet(
                                 unit = unit,
                                 accent = MaterialTheme.colorScheme.primary,
                                 grid = MaterialTheme.colorScheme.outlineVariant,
+                                selected = scrub,
+                                onScrub = { scrub = it },
                             )
                         }
                         if (loading) {
@@ -149,7 +163,18 @@ fun TrendSheet(
                         }
                     }
                     Spacer(Modifier.height(Space.m))
-                    Row(
+                    val picked = scrub?.let { points.getOrNull(it) }
+                    if (picked != null) {
+                        // 훑는 동안에는 양 끝 날짜 대신 손가락이 가리키는 날의 값을 보여준다.
+                        Text(
+                            text = "${PICK_DATE.format(picked.date)} · ${formatFixed(picked.rate * unit, 2)}원",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = Num.FEATURES),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
@@ -235,11 +260,19 @@ private fun LineChart(
     unit: Int,
     accent: androidx.compose.ui.graphics.Color,
     grid: androidx.compose.ui.graphics.Color,
+    selected: Int?,
+    onScrub: (Int?) -> Unit,
 ) {
     val values = points.map { it.rate * unit }
     val low = values.min()
     val high = values.max()
     val span = (high - low).takeIf { it > 0.0 } ?: 1.0
+    val view = rememberView()
+    val surface = MaterialTheme.colorScheme.surface
+
+    // 선이 왼쪽에서 오른쪽으로 그려지며 등장한다. 기간을 바꿔도 다시 그린다.
+    val draw = remember(points) { Animatable(0f) }
+    LaunchedEffect(points) { draw.animateTo(1f, tween(700, easing = FastOutSlowInEasing)) }
 
     Canvas(
         modifier = Modifier
@@ -248,6 +281,31 @@ private fun LineChart(
             .clip(Radius.cardShape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(horizontal = 16.dp, vertical = 16.dp)
+            // 손가락으로 훑으면 가장 가까운 날을 고르고, 날이 바뀔 때마다 약한 틱.
+            .pointerInput(points) {
+                var last = -1
+                fun pick(x: Float) {
+                    val i = ((x / size.width).coerceIn(0f, 1f) * (values.size - 1)).roundToInt()
+                    if (i != last) {
+                        last = i
+                        Haptic.tick(view)
+                        onScrub(i)
+                    }
+                }
+                awaitEachGesture {
+                    last = -1
+                    val down = awaitFirstDown()
+                    pick(down.position.x)
+                    down.consume()
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull() ?: break
+                        if (!change.pressed) break
+                        pick(change.position.x)
+                        change.consume()
+                    }
+                    onScrub(null)
+                }
+            },
     ) {
         val w = size.width
         val h = size.height
@@ -272,18 +330,32 @@ private fun LineChart(
             lineTo(x(0), h)
             close()
         }
+        val p = draw.value
+        clipRect(right = w * p) {
+            drawPath(
+                fill,
+                brush = Brush.verticalGradient(
+                    listOf(accent.copy(alpha = 0.22f), accent.copy(alpha = 0.02f))
+                ),
+            )
+        }
+        val measure = PathMeasure().apply { setPath(line, false) }
+        val partial = Path()
+        measure.getSegment(0f, measure.length * p, partial, true)
         drawPath(
-            fill,
-            brush = Brush.verticalGradient(
-                listOf(accent.copy(alpha = 0.22f), accent.copy(alpha = 0.02f))
-            ),
-        )
-        drawPath(
-            line,
+            partial,
             color = accent,
             style = Stroke(width = 2.6f, cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
-        drawCircle(accent, radius = 4.5f, center = Offset(x(values.lastIndex), y(values.last())))
+        if (p >= 1f) {
+            drawCircle(accent, radius = 4.5f, center = Offset(x(values.lastIndex), y(values.last())))
+        }
+        selected?.let { i ->
+            val c = Offset(x(i), y(values[i]))
+            drawLine(accent.copy(alpha = 0.5f), Offset(c.x, 0f), Offset(c.x, h), 1.5.dp.toPx())
+            drawCircle(surface, radius = 7.dp.toPx(), center = c)
+            drawCircle(accent, radius = 4.5.dp.toPx(), center = c)
+        }
     }
 }
 

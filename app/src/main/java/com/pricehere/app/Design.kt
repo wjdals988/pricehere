@@ -35,6 +35,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.BlurEffect
+import android.os.Build
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -248,7 +261,24 @@ fun Modifier.seam(top: Color, bottom: Brush, dash: Color, inset: Dp): Modifier =
  * 왼쪽에서 세면 107,442 → 1,074,420 처럼 자릿수가 늘 때 모든 글자가 한 칸씩 밀려 전부 다시 움직인다.
  */
 @Composable
-fun RollingNumber(text: String, style: TextStyle, modifier: Modifier = Modifier) {
+fun RollingNumber(text: String, style: TextStyle, modifier: Modifier = Modifier, ticks: Boolean = false) {
+    // 빠른 금액처럼 손으로 누른 변화일 때만, 바뀐 자리 수만큼(최대 3번) 아주 약한 틱을 준다.
+    // 키보드로 칠 때는 키보드가 이미 진동하므로 겹치지 않게 끈다.
+    val view = rememberView()
+    var shown by remember { mutableStateOf(text) }
+    LaunchedEffect(text) {
+        val before = shown
+        shown = text
+        if (!ticks || before == text) return@LaunchedEffect
+        val width = maxOf(before.length, text.length)
+        val changed = (0 until width).count { k ->
+            before.getOrNull(before.length - 1 - k) != text.getOrNull(text.length - 1 - k)
+        }
+        repeat(changed.coerceAtMost(3)) {
+            Haptic.tick(view)
+            delay(55)
+        }
+    }
     Row(modifier) {
         val n = text.length
         text.forEachIndexed { i, ch ->
@@ -420,67 +450,108 @@ fun GlassTabBar(
     hasUpdate: Boolean,
     onSelect: (Tab) -> Unit,
     modifier: Modifier = Modifier,
+    backdrop: Backdrop? = null,
+    onSavedAnchor: (Offset) -> Unit = {},
 ) {
     val shape = RoundedCornerShape(26.dp)
     val dark = isDark()
-    Row(
+    val blur = backdrop != null && Build.VERSION.SDK_INT >= 31
+    var barOrigin by remember { mutableStateOf(Offset.Zero) }
+    val page = MaterialTheme.colorScheme.background
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .shadow(12.dp, shape, ambientColor = Color(0x4015201D), spotColor = Color(0x4015201D), clip = false)
-            // 그림자가 반투명 면 너머로 비쳐 띠처럼 보이지 않도록 탭 바는 글래스보다 진하게 채운다.
             .clip(shape)
-            .background(if (dark) Color(0xEB1B2422) else Color(0xE6FFFFFF))
-            .glass(shape)
-            .padding(6.dp),
+            .onGloballyPositioned { barOrigin = it.positionInRoot() },
     ) {
-        Tab.entries.forEach { tab ->
-            val on = tab == current
-            val tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable { onSelect(tab) }
-                    .padding(vertical = 6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 52.dp, height = 28.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(if (on) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    when (tab) {
-                        Tab.HOME -> SwapIcon(tint, sizeDp = 18)
-                        Tab.SAVED -> TagIcon(tint, sizeDp = 19)
-                        Tab.INFO -> InfoIcon(tint, sizeDp = 19)
+        if (blur && backdrop != null) {
+            // 진짜 배경 흐림: 화면 내용을 기록한 층을 탭 바 자리만큼 옮겨 그리고 통째로 흐린다.
+            // 바탕을 먼저 불투명하게 깔아 그림자가 비쳐 띠처럼 보이지 않게 한다.
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .graphicsLayer {
+                        renderEffect = BlurEffect(5.dp.toPx(), 5.dp.toPx(), TileMode.Clamp)
                     }
-                    if (tab == Tab.SAVED && savedCount > 0) {
-                        CountBadge(savedCount, Modifier.align(Alignment.TopEnd).offset(x = (-6).dp, y = (-2).dp))
-                    }
-                    if (tab == Tab.INFO && hasUpdate) {
-                        Box(
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = (-12).dp, y = 3.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(Trend.rising),
-                        )
-                    }
-                }
-                Text(
-                    text = tab.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
-                    color = tint,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
+                    .drawBehind {
+                        drawRect(page)
+                        val d = backdrop.origin - barOrigin
+                        translate(d.x, d.y) { drawLayer(backdrop.layer) }
+                    },
+            )
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // 흐림이 없으면(Android 12 미만) 그림자가 비치지 않도록 진하게 채운다.
+                .background(
+                    when {
+                        blur && dark -> Color(0x9E1B2422)
+                        blur -> Color(0x73FFFFFF)
+                        dark -> Color(0xEB1B2422)
+                        else -> Color(0xE6FFFFFF)
+                    },
+                )
+                .glass(shape)
+                .padding(6.dp),
+        ) {
+            Tab.entries.forEach { tab ->
+                val on = tab == current
+                val tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onSelect(tab) }
+                        .padding(vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .then(
+                                if (tab == Tab.SAVED) {
+                                    Modifier.onGloballyPositioned { onSavedAnchor(it.boundsInRoot().center) }
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .size(width = 52.dp, height = 28.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (on) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        when (tab) {
+                            Tab.HOME -> SwapIcon(tint, sizeDp = 18)
+                            Tab.SAVED -> TagIcon(tint, sizeDp = 19)
+                            Tab.INFO -> InfoIcon(tint, sizeDp = 19)
+                        }
+                        if (tab == Tab.SAVED && savedCount > 0) {
+                            CountBadge(savedCount, Modifier.align(Alignment.TopEnd).offset(x = (-6).dp, y = (-2).dp))
+                        }
+                        if (tab == Tab.INFO && hasUpdate) {
+                            Box(
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = (-12).dp, y = 3.dp)
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(Trend.rising),
+                            )
+                        }
+                    }
+                    Text(
+                        text = tab.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
+                        color = tint,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+    }
     }
 }
 
@@ -509,3 +580,16 @@ private fun CountBadge(count: Int, modifier: Modifier) {
         )
     }
 }
+
+/** 탭 바 뒤로 흐리게 비칠 화면 내용. 화면을 그릴 때마다 layer에 다시 기록한다. */
+class Backdrop(val layer: GraphicsLayer) {
+    var origin by mutableStateOf(Offset.Zero)
+}
+
+/** 이 Modifier를 단 영역의 그림을 backdrop에 기록하면서 그대로 화면에도 그린다. */
+fun Modifier.recordBackdrop(backdrop: Backdrop): Modifier = this
+    .onGloballyPositioned { backdrop.origin = it.positionInRoot() }
+    .drawWithContent {
+        backdrop.layer.record { this@drawWithContent.drawContent() }
+        drawLayer(backdrop.layer)
+    }
