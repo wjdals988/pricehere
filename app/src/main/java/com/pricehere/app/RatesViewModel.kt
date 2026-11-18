@@ -61,6 +61,7 @@ data class UiState(
     val saved: List<SavedItem> = emptyList(),
     val outcome: RefreshOutcome? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val widgetPalette: WidgetPalette = WidgetPalette.APP,
     val update: UpdateInfo? = null,
     val historyRange: HistoryRange = HistoryRange.MONTH,
     val history: List<RatePoint> = emptyList(),
@@ -154,6 +155,7 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
             snapshot = repo.loadCache(),
             saved = store.load(),
             themeMode = settings.themeMode(),
+            widgetPalette = settings.widgetPalette(),
             priceMode = settings.priceMode(),
             showHints = settings.bumpLaunchCount() <= 3,
             input = handle[KEY_INPUT] ?: "",
@@ -174,6 +176,13 @@ class RatesViewModel(app: Application, private val handle: SavedStateHandle) : A
         }
         refresh()
         checkForUpdate()
+    }
+
+    /** 위젯 색을 바꾸면 홈 화면에 놓인 위젯을 모두 바로 다시 그린다. */
+    fun setWidgetPalette(palette: WidgetPalette) {
+        settings.setWidgetPalette(palette)
+        _state.update { it.copy(widgetPalette = palette) }
+        WidgetHub.updateAll(getApplication())
     }
 
     fun setThemeMode(mode: ThemeMode) {

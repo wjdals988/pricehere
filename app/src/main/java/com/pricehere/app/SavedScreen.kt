@@ -1,5 +1,17 @@
 package com.pricehere.app
 
+import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -419,6 +431,33 @@ private fun DutyFreeGauge(usd: Double) {
     val dark = isDark()
     val ink = MaterialTheme.colorScheme.onPrimaryContainer
     val alert = if (dark) Trend.risingDark else Trend.rising
+    val view = rememberView()
+
+    // 화면에 들어오면 0에서 차오르고, 금액이 바뀌면 그 자리에서 이어서 움직인다.
+    val target = (usd / DUTY_FREE_USD).toFloat().coerceIn(0f, 1f)
+    val fill = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        // 처음에는 탭 전환(약 0.2초)이 끝난 뒤 차오르게 한다. 그 전에 차면 보이지 않는다.
+        if (fill.value == 0f) delay(260)
+        fill.animateTo(target, spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessLow))
+    }
+    // 채움이 멈출 즈음 빛 한 줄이 왼쪽에서 오른쪽으로 한 번 지나간다.
+    val sheen = remember { Animatable(-0.3f) }
+    LaunchedEffect(target) {
+        sheen.snapTo(-0.3f)
+        delay(640)
+        sheen.animateTo(1.3f, tween(900, easing = FastOutSlowInEasing))
+    }
+    // 한도를 넘는 순간에만 경고 진동 한 번(처음 그릴 때는 생략).
+    var wasOver by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(over) {
+        if (wasOver == false && over) Haptic.reject(view)
+        wasOver = over
+    }
+    val barColor by animateColorAsState(if (over) alert else Color(0xFF0B6E5E), tween(360), label = "gauge")
+    val textColor by animateColorAsState(if (over) alert else ink, tween(360), label = "gaugeText")
+    val dollar = "$"
+
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "입국 면세 한도",
@@ -427,42 +466,64 @@ private fun DutyFreeGauge(usd: Double) {
             color = ink,
             modifier = Modifier.weight(1f),
         )
+        RollingNumber(
+            text = dollar + format(usd, 0),
+            style = Num.amount(16).copy(color = textColor, fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
+        )
         Text(
-            text = "$${format(usd, 0)} / $${format(DUTY_FREE_USD, 0)}",
-            style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = Num.FEATURES),
-            fontWeight = FontWeight.Bold,
-            color = if (over) alert else ink,
+            text = " / " + dollar + format(DUTY_FREE_USD, 0),
+            style = Num.amount(16).copy(color = ink.copy(alpha = 0.6f), fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
             maxLines = 1,
         )
     }
     Spacer(Modifier.height(Space.s))
-    Box(
+    val track = ink.copy(alpha = 0.12f)
+    Canvas(
         Modifier
             .fillMaxWidth()
             .height(10.dp)
-            .clip(RoundedCornerShape(5.dp))
-            .background(ink.copy(alpha = 0.12f)),
+            .clip(RoundedCornerShape(5.dp)),
     ) {
-        Box(
-            Modifier
-                .fillMaxWidth((usd / DUTY_FREE_USD).toFloat().coerceIn(0f, 1f))
-                .height(10.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .background(if (over) Brush.linearGradient(listOf(alert, alert)) else TealGradient),
-        )
+        drawRect(track)
+        val w = size.width * fill.value
+        if (w > 0f) {
+            val r = CornerRadius(size.height / 2f)
+            if (over) {
+                drawRoundRect(barColor, size = Size(w, size.height), cornerRadius = r)
+            } else {
+                drawRoundRect(
+                    brush = Brush.horizontalGradient(listOf(Color(0xFF17A08C), barColor), endX = w.coerceAtLeast(1f)),
+                    size = Size(w, size.height),
+                    cornerRadius = r,
+                )
+            }
+            // 빛 줄: 채워진 부분 안에서만 보인다.
+            val x = size.width * sheen.value
+            clipRect(right = w) {
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        listOf(Color.Transparent, Color.White.copy(alpha = 0.55f), Color.Transparent),
+                        startX = x - 60.dp.toPx(),
+                        endX = x + 60.dp.toPx(),
+                    ),
+                )
+            }
+        }
     }
     Spacer(Modifier.height(Space.s))
-    Text(
-        text = if (over) {
-            "${format(usd - DUTY_FREE_USD, 0)}달러 초과 · 1인 기준, 주류·담배·향수 별도"
-        } else {
-            "${format(DUTY_FREE_USD - usd, 0)}달러 남음 · 1인 기준, 주류·담배·향수 별도"
-        },
-        style = MaterialTheme.typography.labelSmall,
-        color = if (over) alert else ink.copy(alpha = 0.75f),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
+    Crossfade(targetState = over, label = "gaugeNote") { isOver ->
+        Text(
+            text = if (isOver) {
+                "${format(usd - DUTY_FREE_USD, 0)}달러 초과 · 1인 기준, 주류·담배·향수 별도"
+            } else {
+                "${format(DUTY_FREE_USD - usd, 0)}달러 남음 · 1인 기준, 주류·담배·향수 별도"
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isOver) alert else ink.copy(alpha = 0.75f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 // ---------------------------------------------------------------- 목록
@@ -514,6 +575,7 @@ private fun SavedRow(
     ) {
         Row(
             modifier = Modifier
+                .sharedSaved("saved-row-${item.id}")
                 .fillMaxWidth()
                 .background(
                     if (picking && checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface

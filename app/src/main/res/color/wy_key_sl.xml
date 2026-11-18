@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯 배경화면 색 모드에서 키를 누를 때 한 단 짙게. 배경 틴트로 쓰므로 눌림 상태를 여기서 준다. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true" android:color="@color/wy_key_pressed" />
+    <item android:color="@color/wy_key" />
+</selector>

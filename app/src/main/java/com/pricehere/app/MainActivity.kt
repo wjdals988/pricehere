@@ -1,5 +1,10 @@
 package com.pricehere.app
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.AnimatedContent
 import android.content.Intent
 import android.os.Bundle
 import android.view.ViewTreeObserver
@@ -161,6 +166,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun AppShell(viewModel: RatesViewModel, state: UiState) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
@@ -188,7 +194,17 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
         // consume 해 두면 홈 화면의 imePadding 이 시스템 내비게이션 높이를 빼고 키보드 위에 딱 붙는다.
         Box(Modifier.fillMaxSize().padding(inset).consumeWindowInsets(inset)) {
             Box(Modifier.fillMaxSize().recordBackdrop(backdrop)) {
-            when (tab) {
+            SharedTransitionLayout {
+            AnimatedContent(
+                targetState = tab,
+                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                label = "tab",
+            ) { current ->
+            CompositionLocalProvider(
+                LocalSharedScope provides this@SharedTransitionLayout,
+                LocalTabScope provides this,
+            ) {
+            when (current) {
                 Tab.HOME -> ConverterScreen(
                     viewModel = viewModel,
                     state = state,
@@ -206,6 +222,9 @@ private fun AppShell(viewModel: RatesViewModel, state: UiState) {
                     openVersion = openVersion,
                     onVersionOpened = { openVersion = false },
                 )
+            }
+            }
+            }
             }
             }
             // 떠 있는 글래스 탭 바. 내용이 그 뒤로 비쳐 지나간다.
