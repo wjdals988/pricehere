@@ -143,16 +143,16 @@ internal fun PaymentSegments(state: UiState, onPick: (PriceMode) -> Unit) {
                     maxLines = 1,
                     softWrap = false,
                 )
-                state.krwFor(mode)?.let { won ->
-                    Text(
-                        text = format(won, 0),
-                        style = Num.amount(16).copy(letterSpacing = 0.sp),
-                        fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
+                // 금액 자리는 입력이 없어도 "—"로 잡아 둔다. 숫자를 넣을 때 칸이 커지며 아래가 밀리지 않게(v2.13).
+                val won = state.krwFor(mode)
+                Text(
+                    text = won?.let { format(it, 0) } ?: "—",
+                    style = Num.amount(16).copy(letterSpacing = 0.sp),
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (won != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    maxLines = 1,
+                    softWrap = false,
+                )
             }
         }
     }

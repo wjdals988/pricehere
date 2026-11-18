@@ -238,7 +238,7 @@ fun ConverterScreen(
                     AnimatedVisibility(visible = state.priceMode == PriceMode.CARD) {
                         DccHint(state = state, onOpen = { showDcc = true })
                     }
-                    Spacer(Modifier.height(Space.l))
+                    Spacer(Modifier.height(Space.m))
                     RateRow(state = state, now = now, onRefresh = { viewModel.refresh(manual = true) })
                     Spacer(Modifier.height(Space.m))
                     ToolTiles(

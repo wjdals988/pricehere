@@ -201,10 +201,11 @@ internal fun ToolTile(
             .clip(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surface)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            // v2.13: 위아래 여백을 줄여 숫자를 넣어도 탭 바와 맞닿지 않게.
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Box(Modifier.height(26.dp), contentAlignment = Alignment.CenterStart) { visual() }
+        Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) { visual() }
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
