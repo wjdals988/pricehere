@@ -135,7 +135,11 @@ fun FavoritesSheet(current: List<Currency>, onDone: (List<Currency>) -> Unit, on
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+            // 맨 아래 항목이 화면 끝·'기본값으로'에 붙어 눌리지 않던 문제(v2.14 #3): 높이를 조금 낮추고 아래 여백을 둔다.
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp),
+            ) {
                 var lastRegion: String? = null
                 matches.forEach { c ->
                     if (query.isBlank() && c.region != lastRegion) {

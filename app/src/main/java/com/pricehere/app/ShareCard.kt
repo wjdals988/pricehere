@@ -29,19 +29,41 @@ object ShareCard {
     private const val W = 1080
     private const val H = 1350
 
-    private const val BG = 0xFFEDF1F0.toInt()
-    private const val INK = 0xFF15201D.toInt()
-    private const val MUTED = 0xFF5E6B67.toInt()
-    private const val DEEP = 0xFF0B3C32.toInt()
+    // 로고 타일 색. 밝기 모드와 상관없이 같다.
     private const val TEAL = 0xFF0B6E5E.toInt()
     private const val TEAL_HI = 0xFF17A08C.toInt()
     private const val TEAL_DEEP = 0xFF05433A.toInt()
-    private const val MINT_TOP = 0xFFDDF5EC.toInt()
-    private const val MINT_BOTTOM = 0xFFCFEFE4.toInt()
-    private const val DASH = 0xFFC9D6D1.toInt()
+
+    /** 카드 색. 앱이 다크 모드면 어두운 카드로 그린다(v2.14 #10). */
+    private class Palette(
+        val bg: Int, val surface: Int, val ink: Int, val muted: Int,
+        val deep: Int, val deepSoft: Int, val accent: Int,
+        val mintTop: Int, val mintBottom: Int, val dash: Int, val divider: Int, val track: Int,
+        val glow1: Int, val glow2: Int, val shadow: Int, val alert: Int,
+    )
+
+    private val LIGHT = Palette(
+        bg = 0xFFEDF1F0.toInt(), surface = 0xFFFFFFFF.toInt(), ink = 0xFF15201D.toInt(), muted = 0xFF5E6B67.toInt(),
+        deep = 0xFF0B3C32.toInt(), deepSoft = 0xB30B3C32.toInt(), accent = 0xFF0B6E5E.toInt(),
+        mintTop = 0xFFDDF5EC.toInt(), mintBottom = 0xFFCFEFE4.toInt(), dash = 0xFFC9D6D1.toInt(),
+        divider = 0xFFE6ECEA.toInt(), track = 0x1F0B3C32,
+        glow1 = 0x4217A08C, glow2 = 0x4D7FE0C3, shadow = 0x400B3C32, alert = 0xFFE12D39.toInt(),
+    )
+
+    private val DARK = Palette(
+        bg = 0xFF0A0F0F.toInt(), surface = 0xFF161E1C.toInt(), ink = 0xFFDDE4E1.toInt(), muted = 0xFF93A19C.toInt(),
+        deep = 0xFFD3F3EA.toInt(), deepSoft = 0xB3BFE3D8.toInt(), accent = 0xFF3FC7AE.toInt(),
+        mintTop = 0xFF12332C.toInt(), mintBottom = 0xFF0E2A24.toInt(), dash = 0xFF2A3532.toInt(),
+        divider = 0xFF26302D.toInt(), track = 0x26FFFFFF,
+        glow1 = 0x3317A08C, glow2 = 0x1F7FE0C3, shadow = 0x66000000, alert = 0xFFFF7A82.toInt(),
+    )
+
+    /** 지금 그리는 카드의 팔레트. render/renderSaved 시작에서 정한다(UI 스레드에서만 부른다). */
+    private var pal = LIGHT
 
     /** 결과가 없으면(환율 없음·입력 없음) null. */
-    fun render(context: Context, state: UiState): Bitmap? {
+    fun render(context: Context, state: UiState, dark: Boolean = false): Bitmap? {
+        pal = if (dark) DARK else LIGHT
         val result = state.result ?: return null
         val amount = state.amountOrNull?.takeIf { it > 0 } ?: return null
         state.rate ?: return null
@@ -55,9 +77,9 @@ object ShareCard {
         val geist = ResourcesCompat.getFont(context, R.font.geist) ?: Typeface.DEFAULT
 
         // 바탕과 은은한 빛 번짐(앱 홈 화면과 같은 느낌)
-        c.drawColor(BG)
-        glow(c, 260f, 380f, 620f, 0x4217A08C)
-        glow(c, 1010f, 760f, 460f, 0x4D7FE0C3)
+        c.drawColor(pal.bg)
+        glow(c, 260f, 380f, 620f, pal.glow1)
+        glow(c, 1010f, 760f, 460f, pal.glow2)
 
         // ---------------- 가격표
         val left = 72f
@@ -71,8 +93,8 @@ object ShareCard {
 
         // 그림자
         val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = BG
-            setShadowLayer(56f, 0f, 28f, 0x400B3C32)
+            color = pal.bg
+            setShadowLayer(56f, 0f, 28f, pal.shadow)
         }
         c.drawRoundRect(RectF(left, top, right, bottom), radius, radius, shadow)
 
@@ -81,22 +103,22 @@ object ShareCard {
         val clip = Path().apply { addRoundRect(RectF(left, top, right, bottom), radius, radius, Path.Direction.CW) }
         c.clipPath(clip)
         val seamY = top + topH + seamH / 2f
-        c.drawRect(left, top, right, seamY, Paint().apply { color = 0xFFFFFFFF.toInt() })
+        c.drawRect(left, top, right, seamY, Paint().apply { color = pal.surface })
         c.drawRect(
             left, seamY, right, bottom,
             Paint().apply {
-                shader = LinearGradient(0f, seamY, 0f, bottom, MINT_TOP, MINT_BOTTOM, Shader.TileMode.CLAMP)
+                shader = LinearGradient(0f, seamY, 0f, bottom, pal.mintTop, pal.mintBottom, Shader.TileMode.CLAMP)
             },
         )
         c.restore()
         // 이음매: 양옆 홈 + 점선
-        val notch = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = BG }
+        val notch = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.bg }
         c.drawCircle(left, seamY, 26f, notch)
         c.drawCircle(right, seamY, 26f, notch)
         c.drawLine(
             left + 56f, seamY, right - 56f, seamY,
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = DASH
+                color = pal.dash
                 strokeWidth = 4f
                 pathEffect = DashPathEffect(floatArrayOf(18f, 14f), 0f)
             },
@@ -106,37 +128,37 @@ object ShareCard {
         val textW = right - left - pad * 2
 
         // 위 칸: 외화
-        val label = korean(40f, MUTED, bold = true)
+        val label = korean(40f, pal.muted, bold = true)
         c.drawText(state.selected.koreanName, left + pad, top + 96f, label)
         if (state.foreignToKrw && state.isExpression) {
-            val expr = number(geist, 40f, MUTED, 500)
+            val expr = number(geist, 40f, pal.muted, 500)
             fitText(Expression.pretty(state.input), expr, textW * 0.62f)
             expr.textAlign = Paint.Align.RIGHT
             c.drawText(Expression.pretty(state.input), right - pad, top + 96f, expr)
         }
-        val codePaint = number(geist, 52f, MUTED, 600).apply { textAlign = Paint.Align.RIGHT }
+        val codePaint = number(geist, 52f, pal.muted, 600).apply { textAlign = Paint.Align.RIGHT }
         c.drawText(code, right - pad, top + 262f, codePaint)
         val foreignText = format(foreign, state.selected.decimals)
-        val big1 = number(geist, 128f, INK, 600)
+        val big1 = number(geist, 128f, pal.ink, 600)
         fitText(foreignText, big1, textW - codePaint.measureText(code) - 40f)
         c.drawText(foreignText, left + pad, top + 268f, big1)
 
         // 아래 칸: 원화
         val bTop = seamY
         val modeLabel = "대한민국 원 · ${state.priceMode.label}"
-        c.drawText(modeLabel, left + pad, bTop + 110f, korean(40f, 0xB30B3C32.toInt(), bold = true))
+        c.drawText(modeLabel, left + pad, bTop + 110f, korean(40f, pal.deepSoft, bold = true))
         val wonText = format(won, 0)
-        val big2 = number(geist, 168f, DEEP, 700)
-        val unit = korean(64f, DEEP, bold = true)
+        val big2 = number(geist, 168f, pal.deep, 700)
+        val unit = korean(64f, pal.deep, bold = true)
         fitText(wonText, big2, textW - unit.measureText("원") - 16f)
         val wonY = bTop + 290f
         c.drawText(wonText, left + pad, wonY, big2)
         c.drawText("원", left + pad + big2.measureText(wonText) + 12f, wonY, unit)
-        approxWon(won)?.let { c.drawText(it, left + pad, bTop + 370f, korean(44f, TEAL, bold = true)) }
+        approxWon(won)?.let { c.drawText(it, left + pad, bTop + 370f, korean(44f, pal.accent, bold = true)) }
 
         // ---------------- 환율과 출처
         val infoY = bottom + 104f
-        state.rateLabel?.let { c.drawText(it, left + 8f, infoY, number(geist, 46f, INK, 600)) }
+        state.rateLabel?.let { c.drawText(it, left + 8f, infoY, number(geist, 46f, pal.ink, 600)) }
         val source = buildString {
             state.snapshot?.let {
                 append(it.source.label)
@@ -148,7 +170,7 @@ object ShareCard {
                 append(" · ${state.priceMode.shortLabel} 수수료 ${formatFixed(state.feePercent, 2)}% 반영")
             }
         }
-        val sourcePaint = korean(34f, MUTED, bold = false)
+        val sourcePaint = korean(34f, pal.muted, bold = false)
         fitText(source, sourcePaint, right - left - 16f)
         c.drawText(source, left + 8f, infoY + 58f, sourcePaint)
 
@@ -161,10 +183,10 @@ object ShareCard {
         val tile = 96f
         wonTile(c, left + 8f, footY - tile / 2f, tile)
         val nameX = left + 8f + tile + 28f
-        c.drawText("여긴얼마?", nameX, footY - 6f, korean(48f, INK, bold = true, heavy = true))
-        c.drawText("지금 이 가격, 원화로", nameX, footY + 42f, korean(32f, MUTED, bold = false))
-        val get = korean(30f, MUTED, bold = false).apply { textAlign = Paint.Align.RIGHT }
-        c.drawText("Android 앱 받기", right - 8f, footY - 6f, korean(32f, TEAL, bold = true).apply { textAlign = Paint.Align.RIGHT })
+        c.drawText("여긴얼마?", nameX, footY - 6f, korean(48f, pal.ink, bold = true, heavy = true))
+        c.drawText("지금 이 가격, 원화로", nameX, footY + 42f, korean(32f, pal.muted, bold = false))
+        val get = korean(30f, pal.muted, bold = false).apply { textAlign = Paint.Align.RIGHT }
+        c.drawText("Android 앱 받기", right - 8f, footY - 6f, korean(32f, pal.accent, bold = true).apply { textAlign = Paint.Align.RIGHT })
         c.drawText("github.com/wjdals988/pricehere", right - 8f, footY + 40f, get)
     }
 
@@ -172,7 +194,8 @@ object ShareCard {
      * 저장 목록 카드. 폭 1080에 높이는 항목 수에 맞춰 1080~1700 사이.
      * 위에 제목, 흰 목록 카드, 민트 합계 카드(입국 면세 한도 막대 포함), 맨 아래 서명.
      */
-    fun renderSaved(context: Context, items: List<SavedItem>, snapshot: Snapshot?): Bitmap? {
+    fun renderSaved(context: Context, items: List<SavedItem>, snapshot: Snapshot?, dark: Boolean = false): Bitmap? {
+        pal = if (dark) DARK else LIGHT
         if (items.isEmpty()) return null
         val rates = snapshot?.rates.orEmpty()
         fun rateOf(item: SavedItem) = rates[item.currencyCode] ?: item.rateAtSave
@@ -195,65 +218,65 @@ object ShareCard {
         val bmp = Bitmap.createBitmap(W, height, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val geist = ResourcesCompat.getFont(context, R.font.geist) ?: Typeface.DEFAULT
-        c.drawColor(BG)
-        glow(c, 260f, 380f, 620f, 0x4217A08C)
-        glow(c, 1010f, height * 0.62f, 460f, 0x4D7FE0C3)
+        c.drawColor(pal.bg)
+        glow(c, 260f, 380f, 620f, pal.glow1)
+        glow(c, 1010f, height * 0.62f, 460f, pal.glow2)
 
         // 제목
-        c.drawText("저장한 금액", left + 8f, 150f, korean(60f, INK, bold = true, heavy = true))
+        c.drawText("저장한 금액", left + 8f, 150f, korean(60f, pal.ink, bold = true, heavy = true))
         val sub = "${items.size}건 · 현재 환율 기준" +
             (snapshot?.let { " · ${DAY_STAMP.format(Instant.ofEpochMilli(it.quotedAtMillis))} 고시" } ?: "")
-        c.drawText(sub, left + 8f, 206f, korean(34f, MUTED, bold = false))
+        c.drawText(sub, left + 8f, 206f, korean(34f, pal.muted, bold = false))
 
         // 목록 카드
-        val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); setShadowLayer(40f, 0f, 18f, 0x2E0B3C32) }
+        val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surface; setShadowLayer(40f, 0f, 18f, pal.shadow) }
         c.drawRoundRect(RectF(left, listTop, right, listBottom), 56f, 56f, shadow)
         val pad = 56f
-        val divider = Paint().apply { color = 0xFFE6ECEA.toInt(); strokeWidth = 2f }
+        val divider = Paint().apply { color = pal.divider; strokeWidth = 2f }
         var y = listTop + 28f
         shown.forEachIndexed { i, item ->
             val krw = item.krwAt(rateOf(item))
             val wonText = format(krw, 0) + "원"
-            val wonPaint = number(geist, 46f, INK, 600).apply { textAlign = Paint.Align.RIGHT }
+            val wonPaint = number(geist, 46f, pal.ink, 600).apply { textAlign = Paint.Align.RIGHT }
             val wonW = wonPaint.measureText(wonText)
-            val memo = korean(40f, INK, bold = true)
+            val memo = korean(40f, pal.ink, bold = true)
             val memoText = ellipsize(item.memo, memo, right - left - pad * 2 - wonW - 32f)
             c.drawText(memoText, left + pad, y + 52f, memo)
             val detail = "${format(item.amount, item.currency.decimals)} ${item.currencyCode}" +
                 (if (item.mode != PriceMode.BASE) " · ${item.mode.shortLabel}" else "")
-            c.drawText(detail, left + pad, y + 94f, number(geist, 30f, MUTED, 500))
+            c.drawText(detail, left + pad, y + 94f, number(geist, 30f, pal.muted, 500))
             c.drawText(wonText, right - pad, y + 70f, wonPaint)
             if (i < listRows - 1) c.drawLine(left + pad, y + rowH, right - pad, y + rowH, divider)
             y += rowH
         }
         if (rest > 0) {
-            c.drawText("외 ${rest}건", left + pad, y + 66f, korean(36f, MUTED, bold = true))
+            c.drawText("외 ${rest}건", left + pad, y + 66f, korean(36f, pal.muted, bold = true))
         }
 
         // 합계 카드
         val totalRect = RectF(left, totalTop, right, totalBottom)
         c.drawRoundRect(totalRect, 56f, 56f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(0f, totalTop, 0f, totalBottom, MINT_TOP, MINT_BOTTOM, Shader.TileMode.CLAMP)
-            setShadowLayer(40f, 0f, 18f, 0x2E0B3C32)
+            shader = LinearGradient(0f, totalTop, 0f, totalBottom, pal.mintTop, pal.mintBottom, Shader.TileMode.CLAMP)
+            setShadowLayer(40f, 0f, 18f, pal.shadow)
         })
-        c.drawText("합계", left + pad, totalTop + 84f, korean(38f, 0xB30B3C32.toInt(), bold = true))
+        c.drawText("합계", left + pad, totalTop + 84f, korean(38f, pal.deepSoft, bold = true))
         val totalText = format(total, 0)
-        val big = number(geist, 120f, DEEP, 700)
+        val big = number(geist, 120f, pal.deep, 700)
         fitText(totalText, big, right - left - pad * 2 - 90f)
         c.drawText(totalText, left + pad, totalTop + 200f, big)
-        c.drawText("원", left + pad + big.measureText(totalText) + 12f, totalTop + 200f, korean(52f, DEEP, bold = true))
+        c.drawText("원", left + pad + big.measureText(totalText) + 12f, totalTop + 200f, korean(52f, pal.deep, bold = true))
         if (usd != null) {
             val over = usd > DUTY_FREE_USD
-            val alert = 0xFFE12D39.toInt()
+            val alert = pal.alert
             val barTop = totalTop + 296f
             val barL = left + pad
             val barR = right - pad
-            val label = korean(30f, 0xB30B3C32.toInt(), bold = true)
+            val label = korean(30f, pal.deepSoft, bold = true)
             c.drawText("입국 면세 한도", barL, barTop - 14f, label)
             val usdText = "$" + format(usd, 0) + " / $" + format(DUTY_FREE_USD, 0)
-            c.drawText(usdText, barR, barTop - 14f, number(geist, 32f, if (over) alert else DEEP, 700).apply { textAlign = Paint.Align.RIGHT })
+            c.drawText(usdText, barR, barTop - 14f, number(geist, 32f, if (over) alert else pal.deep, 700).apply { textAlign = Paint.Align.RIGHT })
             val track = RectF(barL, barTop + 8f, barR, barTop + 30f)
-            c.drawRoundRect(track, 11f, 11f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x1F0B3C32 })
+            c.drawRoundRect(track, 11f, 11f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.track })
             val frac = (usd / DUTY_FREE_USD).toFloat().coerceIn(0f, 1f)
             if (frac > 0f) {
                 val fill = RectF(barL, barTop + 8f, barL + (barR - barL) * frac, barTop + 30f)
@@ -262,7 +285,7 @@ object ShareCard {
                 })
             }
             val note = if (over) "${format(usd - DUTY_FREE_USD, 0)}달러 초과 · 1인 기준" else "${format(DUTY_FREE_USD - usd, 0)}달러 남음 · 1인 기준"
-            c.drawText(note, barL, barTop + 70f, korean(28f, if (over) alert else 0xB30B3C32.toInt(), bold = false))
+            c.drawText(note, barL, barTop + 70f, korean(28f, if (over) alert else pal.deepSoft, bold = false))
         }
 
         signature(c, left, right, height - 120f)
