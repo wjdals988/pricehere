@@ -12,6 +12,8 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.layout.boundsInWindow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.layout.boundsInRoot
@@ -179,15 +181,18 @@ fun ConverterScreen(
             if (typing) Spacer(Modifier.height(Space.m))
 
             if (state.snapshot?.source == RateSource.CACHE) {
-                OfflineBanner()
+                Box(Modifier.introRise(60)) { OfflineBanner() }
                 Spacer(Modifier.height(Space.m))
             }
 
-            CurrencySegments(selected = state.selected, onSelect = viewModel::select)
+            Box(Modifier.introRise(60)) {
+                CurrencySegments(selected = state.selected, onSelect = viewModel::select)
+            }
 
             Spacer(Modifier.height(Space.m))
 
             val resultText = state.result?.let { format(it, state.toDecimals) } ?: "—"
+            Box(Modifier.introRise(110)) {
             PriceTag(
                 state = state,
                 resultText = resultText,
@@ -220,9 +225,10 @@ fun ConverterScreen(
                     viewModel.clearInput()
                 },
             )
+            }
 
             // 입력 중에는 결제 수단 줄도 접는다. 키보드 위 연산자 줄과 겹치면 글자가 비쳐 지저분해진다.
-            AnimatedVisibility(visible = !typing) {
+            AnimatedVisibility(visible = !typing, modifier = Modifier.introRise(160)) {
                 Column {
                     Spacer(Modifier.height(Space.m))
                     PaymentSegments(state = state, onPick = viewModel::setPriceMode)
@@ -327,10 +333,16 @@ private fun Header(
         modifier = Modifier.fillMaxWidth().height(72.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 런처 아이콘과 같은 마크(입체 C안). 앱을 열 때마다 브랜드가 먼저 눈에 들어온다.
-        WonTile(sizeDp = 40)
+        // 런처 아이콘과 같은 마크(입체 C안). 시작 화면의 타일이 이 자리로 날아와 앉는다(SplashGate).
+        DisposableEffect(Unit) { onDispose { SplashGate.headerTile = null } }
+        Box(
+            Modifier.onGloballyPositioned {
+                val r = it.boundsInWindow()
+                SplashGate.headerTile = android.graphics.RectF(r.left, r.top, r.right, r.bottom)
+            },
+        ) { WonTile(sizeDp = 40) }
         Spacer(Modifier.width(Space.m))
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).introRise(0)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "여긴얼마?",
@@ -374,6 +386,7 @@ private fun Header(
                 maxLines = 1,
             )
         }
+        Box(Modifier.introRise(0)) {
         GlassIconButton(description = "결과 공유", onClick = onShare) {
             Icon(
                 imageVector = Icons.Filled.Share,
@@ -381,6 +394,7 @@ private fun Header(
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
         }
     }
 }

@@ -3,6 +3,7 @@ package com.pricehere.app
 import android.content.Intent
 import android.os.Bundle
 import android.view.ViewTreeObserver
+import android.view.animation.PathInterpolator
 import android.view.View
 import android.os.SystemClock
 import android.os.Build
@@ -70,8 +71,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 시작 화면의 ₩ 그리기(약 0.5초)가 첫 화면에 잘리지 않도록 최대 450ms만 붙잡고,
-     * 사라질 때는 아이콘이 살짝 커지며 흐려진다. Android 12 미만은 시작 화면 API가 없어 그대로 둔다.
+     * v2.9 B안 "로고 착지": 가운데 ₩ 타일이 잠깐(약 0.4초) 머문 뒤 헤더 로고 자리로 줄어들며 날아가 앉고,
+     * 앉는 순간 홈 화면의 나머지가 아래에서 떠오른다. Android 12 미만은 시작 화면 API가 없어 그대로 둔다.
      */
     private fun holdSplash() {
         if (Build.VERSION.SDK_INT < 31) return
@@ -79,15 +80,41 @@ class MainActivity : ComponentActivity() {
         val content = findViewById<View>(android.R.id.content)
         content.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
-                if (SystemClock.uptimeMillis() - start < 450) return false
+                if (SystemClock.uptimeMillis() - start < 420) return false
                 content.viewTreeObserver.removeOnPreDrawListener(this)
                 return true
             }
         })
+        SplashGate.done.value = false
+        // 시작 화면이 어떤 이유로든 안 뜨면 홈이 투명한 채 남지 않도록 1.5초 뒤 강제로 연다.
+        content.postDelayed({ SplashGate.done.value = true }, 1500)
         splashScreen.setOnExitAnimationListener { splash ->
             val icon = splash.iconView
-            splash.animate().alpha(0f).setDuration(220).withEndAction { splash.remove() }.start()
-            icon?.animate()?.scaleX(1.12f)?.scaleY(1.12f)?.setDuration(220)?.start()
+            val target = SplashGate.headerTile
+            if (icon == null || target == null || icon.width == 0) {
+                SplashGate.done.value = true
+                splash.animate().alpha(0f).setDuration(200).withEndAction { splash.remove() }.start()
+                return@setOnExitAnimationListener
+            }
+            // 아이콘 뷰 안에서 타일이 차지하는 크기(splash_icon.xml의 48/108).
+            val loc = IntArray(2).also { icon.getLocationInWindow(it) }
+            val tile = icon.width * SPLASH_TILE_FRACTION
+            val cx = loc[0] + icon.width / 2f
+            val cy = loc[1] + icon.height / 2f
+            val scale = target.width() / tile
+            icon.animate()
+                .translationX(target.centerX() - cx)
+                .translationY(target.centerY() - cy)
+                .scaleX(scale)
+                .scaleY(scale)
+                .setDuration(520)
+                .setInterpolator(PathInterpolator(0.65f, 0f, 0.35f, 1f))
+                .withEndAction {
+                    // 헤더 로고와 정확히 겹친 순간 나머지를 띄우고, 시작 화면은 짧게 걷어낸다.
+                    SplashGate.done.value = true
+                    splash.animate().alpha(0f).setDuration(160).withEndAction { splash.remove() }.start()
+                }
+                .start()
         }
     }
 
@@ -122,6 +149,9 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        /** splash_icon.xml에서 타일이 캔버스에서 차지하는 비율(48/108). */
+        private const val SPLASH_TILE_FRACTION = 48f / 108f
+
         const val EXTRA_CURRENCY = "com.pricehere.app.CURRENCY"
         const val EXTRA_AMOUNT = "com.pricehere.app.AMOUNT"
         /** true면 EXTRA_AMOUNT 는 원화다. 원 → 외화 방향으로 연다. */

@@ -36,7 +36,9 @@ fun buildConversionShareText(state: UiState): String {
             appendLine("반영   ${state.priceMode.label} 수수료 ${formatFixed(state.feePercent, 2)}%")
         }
         appendLine(RULE)
-        append("여긴얼마? $APP_VERSION · $DASHBOARD_HOST")
+        appendLine("여긴얼마? $APP_VERSION")
+        appendLine("앱 받기 (Android)")
+        append(DOWNLOAD_URL)
     }
 }
 
@@ -74,7 +76,9 @@ fun buildSavedShareText(items: List<SavedItem>, snapshot: Snapshot?): String {
             )
         }
         appendLine(RULE)
-        append("여긴얼마? $APP_VERSION · $DASHBOARD_HOST")
+        appendLine("여긴얼마? $APP_VERSION")
+        appendLine("앱 받기 (Android)")
+        append(DOWNLOAD_URL)
     }
 }
 

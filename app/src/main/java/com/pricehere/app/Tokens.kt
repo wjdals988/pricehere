@@ -62,15 +62,16 @@ object Num {
     val glyph = 13.sp
 
     /**
-     * 금액 숫자 글꼴 Archivo(OFL, assets/licenses/Archivo-OFL.txt).
-     * 시스템 글꼴보다 숫자 획이 단단하고 0·6·9의 속공간이 넓어 큰 금액이 또렷하다.
-     * 가변 글꼴 하나에서 굵기 축만 골라 쓴다. 없는 글자(×÷ 등)는 시스템 글꼴로 넘어간다.
+     * 금액 숫자 글꼴 Geist(OFL 1.1, res/raw/license_geist_ofl.txt).
+     * v2.8의 Archivo는 폭이 넓고 1의 깃발이 커서 투박했다. Geist는 기하학적이면서 0·6·9 속공간이
+     * 넓어 작은 크기에서도 또렷하고, 파일도 165KB로 가볍다. 가변 글꼴의 굵기 축만 골라 쓰고,
+     * 없는 글자(×÷ 등)는 시스템 글꼴로 넘어간다.
      */
     @OptIn(ExperimentalTextApi::class)
     val family = FontFamily(
         listOf(500, 600, 700, 800).map { w ->
             Font(
-                R.font.archivo,
+                R.font.geist,
                 weight = FontWeight(w),
                 variationSettings = FontVariation.Settings(FontVariation.weight(w)),
             )
