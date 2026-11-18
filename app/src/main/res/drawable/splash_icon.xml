@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  v2.9 시작 화면 아이콘(B안 "로고 착지").
-  큰 판 대신 가운데에 작은 타일만 그린다(108 캔버스 중 48). 바깥은 투명이라 기기의 아이콘 마스크와 상관없이
-  타일 모양 그대로 보인다. 타일은 살짝 커지며 자리 잡고, 이후 MainActivity.holdSplash가 헤더 로고 자리로 날려 보낸다.
-  타일 크기(48/108)는 MainActivity.SPLASH_TILE_FRACTION과 같아야 착지 위치가 맞는다.
+  v2.13 시작 화면 아이콘(B안 "로고 착지").
+  타일은 108 캔버스 가운데 48 크기(30~78). 안쪽 그림은 헤더 로고(Design.WonTile)와 같은 형태를
+  0~108 좌표 그대로 옮겨 0.4444배로 줄였다. 그래야 착지한 순간 헤더 로고와 모양·₩ 비율이 같다.
+    - 모서리 30, 오른쪽 위 광택, 윗변 하이라이트, ₩는 1.11배 + 아래 2.5 그림자
+  시스템은 이 그림을 108 중 72 영역 기준으로 1.5배 키워 보여준다. 그래서 화면상 타일 폭은
+  아이콘 뷰 폭의 48/72이고, MainActivity.SPLASH_TILE_FRACTION도 같은 값이어야 한다.
 -->
 <animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt">
@@ -14,41 +16,57 @@
             android:viewportWidth="108"
             android:viewportHeight="108">
             <group android:name="tile" android:pivotX="54" android:pivotY="54" android:scaleX="0.9" android:scaleY="0.9">
-                <!-- 바닥 그림자: 아래로 1.5 내린 옅은 판 -->
-                <path android:fillColor="#260B3C32"
-                    android:pathData="M44,31.5h20a14,14 0,0 1,14 14v20a14,14 0,0 1,-14 14h-20a14,14 0,0 1,-14 -14v-20a14,14 0,0 1,14 -14z" />
-                <path android:pathData="M44,30h20a14,14 0,0 1,14 14v20a14,14 0,0 1,-14 14h-20a14,14 0,0 1,-14 -14v-20a14,14 0,0 1,14 -14z">
-                    <aapt:attr name="android:fillColor">
-                        <gradient android:type="linear" android:startX="34" android:startY="30" android:endX="74" android:endY="78">
-                            <item android:offset="0.0" android:color="#FF17A08C" />
-                            <item android:offset="0.55" android:color="#FF0B6E5E" />
-                            <item android:offset="1.0" android:color="#FF05433A" />
-                        </gradient>
-                    </aapt:attr>
-                </path>
-                <!-- 위쪽 빛 띠 -->
-                <path android:pathData="M44,30h20a14,14 0,0 1,14 14v2h-48v-2a14,14 0,0 1,14 -14z">
-                    <aapt:attr name="android:fillColor">
-                        <gradient android:type="linear" android:startX="54" android:startY="30" android:endX="54" android:endY="46">
-                            <item android:offset="0.0" android:color="#33FFFFFF" />
-                            <item android:offset="1.0" android:color="#00FFFFFF" />
-                        </gradient>
-                    </aapt:attr>
-                </path>
-                <!-- ₩: 런처 아이콘의 마크를 타일 크기(48/72)로 줄인다 -->
-                <group android:pivotX="54" android:pivotY="54" android:scaleX="0.667" android:scaleY="0.667">
-                    <group android:translateY="2">
+                <group android:translateX="30" android:translateY="30" android:scaleX="0.44444" android:scaleY="0.44444">
+                    <path android:pathData="M30,0h48a30,30 0,0 1,30 30v48a30,30 0,0 1,-30 30h-48a30,30 0,0 1,-30 -30v-48a30,30 0,0 1,30 -30z">
+                        <aapt:attr name="android:fillColor">
+                            <gradient android:type="linear" android:startX="6" android:startY="0" android:endX="102" android:endY="108">
+                                <item android:offset="0.0" android:color="#FF17A08C" />
+                                <item android:offset="0.55" android:color="#FF0B6E5E" />
+                                <item android:offset="1.0" android:color="#FF05433A" />
+                            </gradient>
+                        </aapt:attr>
+                    </path>
+                    <!-- 오른쪽 위 광택(타일 모서리 밖으로 나가지 않게 둥근 모서리 안쪽만) -->
+                    <path android:fillColor="#1AFFFFFF"
+                        android:pathData="M78,0a30,30 0,0 1,30 30v32c-30,-18 -50,-42 -54,-62z" />
+                    <!-- 윗변 하이라이트 -->
+                    <path android:strokeWidth="3"
+                        android:pathData="M30,1.5h48a28.5,28.5 0,0 1,28.5 28.5v48a28.5,28.5 0,0 1,-28.5 28.5h-48a28.5,28.5 0,0 1,-28.5 -28.5v-48a28.5,28.5 0,0 1,28.5 -28.5z">
+                        <aapt:attr name="android:strokeColor">
+                            <gradient android:type="linear" android:startX="54" android:startY="0" android:endX="54" android:endY="48">
+                                <item android:offset="0.0" android:color="#8CFFFFFF" />
+                                <item android:offset="1.0" android:color="#00FFFFFF" />
+                            </gradient>
+                        </aapt:attr>
+                    </path>
+                    <!-- ₩: WonTile과 같은 1.11배 -->
+                    <group android:pivotX="54" android:pivotY="54" android:scaleX="1.11" android:scaleY="1.11">
+                        <group android:translateY="2.25">
+                            <path android:pathData="M36.2,37 L45.1,72.7 L54,44.6 L62.9,72.7 L71.8,37"
+                                android:strokeColor="#6605433A" android:strokeWidth="7.6"
+                                android:strokeLineCap="round" android:strokeLineJoin="round" />
+                            <path android:pathData="M32.8,52.3 L75.2,52.3 M32.8,62.5 L75.2,62.5"
+                                android:strokeColor="#6605433A" android:strokeWidth="5.1" android:strokeLineCap="round" />
+                        </group>
                         <path android:pathData="M36.2,37 L45.1,72.7 L54,44.6 L62.9,72.7 L71.8,37"
-                            android:strokeColor="#5905433A" android:strokeWidth="7.6"
-                            android:strokeLineCap="round" android:strokeLineJoin="round" />
+                            android:strokeWidth="7.6" android:strokeLineCap="round" android:strokeLineJoin="round">
+                            <aapt:attr name="android:strokeColor">
+                                <gradient android:type="linear" android:startX="54" android:startY="30" android:endX="54" android:endY="80">
+                                    <item android:offset="0.0" android:color="#FFFFFFFF" />
+                                    <item android:offset="1.0" android:color="#FFD3F3EA" />
+                                </gradient>
+                            </aapt:attr>
+                        </path>
                         <path android:pathData="M32.8,52.3 L75.2,52.3 M32.8,62.5 L75.2,62.5"
-                            android:strokeColor="#5905433A" android:strokeWidth="5.1" android:strokeLineCap="round" />
+                            android:strokeWidth="5.1" android:strokeLineCap="round">
+                            <aapt:attr name="android:strokeColor">
+                                <gradient android:type="linear" android:startX="54" android:startY="30" android:endX="54" android:endY="80">
+                                    <item android:offset="0.0" android:color="#FFFFFFFF" />
+                                    <item android:offset="1.0" android:color="#FFD3F3EA" />
+                                </gradient>
+                            </aapt:attr>
+                        </path>
                     </group>
-                    <path android:pathData="M36.2,37 L45.1,72.7 L54,44.6 L62.9,72.7 L71.8,37"
-                        android:strokeColor="#FFFFFFFF" android:strokeWidth="7.6"
-                        android:strokeLineCap="round" android:strokeLineJoin="round" />
-                    <path android:pathData="M32.8,52.3 L75.2,52.3 M32.8,62.5 L75.2,62.5"
-                        android:strokeColor="#FFE6F8F2" android:strokeWidth="5.1" android:strokeLineCap="round" />
                 </group>
             </group>
         </vector>

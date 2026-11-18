@@ -10,6 +10,14 @@ data class Release(
 /** 최신 버전이 맨 위. 배포할 때마다 여기에 한 블록씩 쌓는다. */
 val CHANGELOG: List<Release> = listOf(
     Release(
+        version = "2.12.1",
+        date = "2026-11-18",
+        headline = "시작 화면 로고 착지를 바로잡았습니다",
+        notes = listOf(
+            "앱을 열 때 ₩ 타일이 상단 로고와 같은 크기·모양으로 정확히 겹쳐 앉습니다",
+        ),
+    ),
+    Release(
         version = "2.12.0",
         date = "2026-11-18",
         headline = "저장 목록 카드와 원화 결제 안내",
