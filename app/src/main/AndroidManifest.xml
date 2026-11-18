@@ -73,5 +73,15 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_keypad_info" />
         </receiver>
+        <!-- 공유 이미지(cache/share/pricehere.png)를 다른 앱에 넘길 때만 쓴다. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
     </application>
 </manifest>

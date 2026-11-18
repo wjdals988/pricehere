@@ -10,6 +10,15 @@ data class Release(
 /** 최신 버전이 맨 위. 배포할 때마다 여기에 한 블록씩 쌓는다. */
 val CHANGELOG: List<Release> = listOf(
     Release(
+        version = "2.10.0",
+        date = "2026-11-18",
+        headline = "환산 결과를 이미지 카드로 공유합니다",
+        notes = listOf(
+            "공유 버튼을 누르면 가격표 모양 이미지를 미리 보고 보낼 수 있습니다",
+            "이미지에는 앱 받기 링크가 담긴 글이 함께 붙고, 글로만 보낼 수도 있습니다",
+        ),
+    ),
+    Release(
         version = "2.9.0",
         date = "2026-11-18",
         headline = "숫자 글꼴과 시작 화면을 바꿨습니다",

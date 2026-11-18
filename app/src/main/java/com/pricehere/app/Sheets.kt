@@ -1,6 +1,7 @@
 package com.pricehere.app
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.LaunchedEffect
 import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -660,6 +661,100 @@ fun ToolChip(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+// ---------------------------------------------------------------- 공유
+
+/**
+ * 공유 방법을 고르는 시트. 위에 실제로 보낼 이미지 카드를 미리 보여주고,
+ * 이미지(글 함께) 또는 글만 보낼 수 있다. 결과가 없으면 글 공유만 남긴다.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShareSheet(state: UiState, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val text = remember(state) { buildConversionShareText(state) }
+    val card = remember(state.result, state.input, state.priceMode, state.selected, state.foreignToKrw, state.snapshot) {
+        ShareCard.render(context, state)
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = Space.gutter)
+                .padding(bottom = 20.dp),
+        ) {
+            Text(
+                text = "환산 결과 공유",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(Space.xs))
+            Text(
+                text = "이미지에는 앱 받기 링크가 담긴 글이 함께 붙습니다",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(Space.l))
+            if (card != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = card.asImageBitmap(),
+                    contentDescription = "공유할 이미지 미리보기",
+                    modifier = Modifier
+                        .fillMaxWidth(0.72f)
+                        .align(Alignment.CenterHorizontally)
+                        .clip(RoundedCornerShape(18.dp)),
+                )
+                Spacer(Modifier.height(Space.l))
+                ShareAction(
+                    label = "이미지로 공유",
+                    primary = true,
+                ) {
+                    onDismiss()
+                    ShareCard.share(context, card, text)
+                }
+                Spacer(Modifier.height(Space.s))
+            }
+            ShareAction(label = "글로 공유", primary = card == null) {
+                onDismiss()
+                shareText(context, text, "환산 결과 공유")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareAction(label: String, primary: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(shape)
+            .then(
+                if (primary) {
+                    Modifier.background(TealGradient)
+                } else {
+                    Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                },
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (primary) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onSurface,
         )
     }
 }
