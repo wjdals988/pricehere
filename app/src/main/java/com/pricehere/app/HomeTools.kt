@@ -138,6 +138,7 @@ internal fun ToolTiles(
         else -> Trend.falling
     }
     val trendValue = when {
+        !state.selected.hasHistory -> "자료 없음"
         summary != null -> "${state.historyRange.label} ${if (up) "▲" else "▼"}${formatFixed(kotlin.math.abs(summary.changePercent), 2)}%"
         state.historyLoading -> "불러오는 중"
         else -> "그래프 보기"
@@ -146,13 +147,19 @@ internal fun ToolTiles(
     val refund = state.selected.taxRefund
     val price = state.foreignAmount
     val refundValue = when {
+        // v2.13에 늘린 통화는 환급 제도를 조사하지 않았다. '없음'과 구분해 '자료 없음'.
+        state.selected.basicOnly -> "자료 없음"
         refund == null -> "제도 없음"
         price > 0 -> "예상 ${format(refund.estimatedRefund(price), state.selected.decimals)} ${state.selected.code}"
         else -> "부가세 ${format(refund.vatPercent, 0)}%"
     }
 
-    val tip = state.selected.tip.suggested
-    val tipValue = if (tip.firstOrNull() == 0) "팁 문화 없음" else "${tip.first()}~${tip.last()}%"
+    val tip = state.selected.tip?.suggested
+    val tipValue = when {
+        tip == null -> "자료 없음"
+        tip.firstOrNull() == 0 -> "팁 문화 없음"
+        else -> "${tip.first()}~${tip.last()}%"
+    }
 
     Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
         ToolTile(
@@ -160,6 +167,7 @@ internal fun ToolTiles(
             value = trendValue,
             valueColor = if (summary != null) trendColor else muted,
             onClick = onTrend,
+            enabled = state.selected.hasHistory,
             modifier = Modifier.weight(1f),
         ) {
             if (points.size >= 2) {
@@ -181,6 +189,7 @@ internal fun ToolTiles(
             value = tipValue,
             valueColor = muted,
             onClick = onTip,
+            enabled = tip != null,
             modifier = Modifier.weight(1f),
         ) { CoinIcon(ink, sizeDp = 26) }
     }

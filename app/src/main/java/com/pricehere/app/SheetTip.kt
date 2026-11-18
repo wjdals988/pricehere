@@ -66,7 +66,7 @@ import java.time.format.DateTimeFormatter
 fun TipSheet(state: UiState, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val currency = state.selected
-    val tip = currency.tip
+    val tip = currency.tip ?: return
 
     var percent by remember { mutableIntStateOf(tip.suggested.firstOrNull() ?: 10) }
     var people by remember { mutableIntStateOf(1) }

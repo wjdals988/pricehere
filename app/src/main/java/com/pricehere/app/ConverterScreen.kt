@@ -138,6 +138,7 @@ fun ConverterScreen(
     var showRefund by remember { mutableStateOf(false) }
     var showShare by remember { mutableStateOf(false) }
     var showDcc by remember { mutableStateOf(false) }
+    var showFavorites by remember { mutableStateOf(false) }
 
     // 신선도 문구를 30초마다 다시 계산한다.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -189,7 +190,22 @@ fun ConverterScreen(
             }
 
             Box(Modifier.introRise(60)) {
-                CurrencySegments(selected = state.selected, onSelect = viewModel::select)
+                CurrencySegments(
+                    favorites = state.favorites,
+                    selected = state.selected,
+                    onSelect = viewModel::select,
+                    onEdit = { showFavorites = true },
+                )
+                // 처음 3번만: 통화 칸을 길게 누르면 바꿀 수 있다는 안내.
+                if (state.showHints && !typing) {
+                    Text(
+                        text = "통화 칸을 길게 눌러 자주 쓰는 통화 바꾸기",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
             }
 
             Spacer(Modifier.height(Space.m))
@@ -279,6 +295,17 @@ fun ConverterScreen(
         }
     }
 
+    if (showFavorites) {
+        FavoritesSheet(
+            current = state.favorites,
+            onDone = {
+                viewModel.setFavorites(it)
+                showFavorites = false
+            },
+            onDismiss = { showFavorites = false },
+        )
+    }
+
     if (showDcc) {
         DccSheet(onDismiss = { showDcc = false })
     }
@@ -298,7 +325,7 @@ fun ConverterScreen(
         )
     }
 
-    if (showTip) {
+    if (showTip && state.selected.tip != null) {
         TipSheet(state = state, onDismiss = { showTip = false })
     }
 

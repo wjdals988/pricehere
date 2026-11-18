@@ -77,12 +77,28 @@ fun InfoScreen(
             )
         }
 
+        var showFavorites by remember { mutableStateOf(false) }
+        if (showFavorites) {
+            FavoritesSheet(
+                current = state.favorites,
+                onDone = {
+                    viewModel.setFavorites(it)
+                    showFavorites = false
+                },
+                onDismiss = { showFavorites = false },
+            )
+        }
+
         VersionCard(
             state = state,
             forceOpen = openVersion,
             onOpened = onVersionOpened,
             onDismissUpdate = viewModel::dismissUpdate,
         )
+
+        Spacer(Modifier.height(Space.m))
+
+        FavoritesCard(current = state.favorites, onOpen = { showFavorites = true })
 
         Spacer(Modifier.height(Space.m))
 

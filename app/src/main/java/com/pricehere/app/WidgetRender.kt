@@ -14,12 +14,12 @@ private val CHIP_IDS = intArrayOf(
     R.id.w_chip_0, R.id.w_chip_1, R.id.w_chip_2,
     R.id.w_chip_3, R.id.w_chip_4, R.id.w_chip_5,
 )
-private val CURRENCY_IDS = mapOf(
-    Currency.USD to R.id.w_cur_usd,
-    Currency.EUR to R.id.w_cur_eur,
-    Currency.JPY to R.id.w_cur_jpy,
-    Currency.CZK to R.id.w_cur_czk,
-)
+/** 위젯 통화 칩 자리 4곳. 이름(usd 등)은 v2.12까지의 기본 통화를 따른 것이고, 지금은 순서만 뜻한다. */
+private val CHIP_SLOT_IDS = listOf(R.id.w_cur_usd, R.id.w_cur_eur, R.id.w_cur_jpy, R.id.w_cur_czk)
+
+/** 홈 통화 칸과 같은 통화를 같은 순서로 칩 자리에 놓는다. 3개 이하면 남는 자리는 숨긴다. */
+private fun currencyIds(context: Context): Map<Currency, Int> =
+    SettingsStore(context).favorites().zip(CHIP_SLOT_IDS).toMap()
 
 // ---------------------------------------------------------------- 4×2 환율 보기
 
@@ -33,7 +33,14 @@ fun renderRateWidget(context: Context): RemoteViews {
     )
     views.setTextColor(R.id.w_time, context.getColor(staleColor(snapshot, R.color.w_muted)))
 
-    Currency.entries.forEachIndexed { i, currency ->
+    val shown = SettingsStore(context).favorites()
+    CODE_IDS.indices.forEach { i ->
+        val visible = if (i < shown.size) android.view.View.VISIBLE else android.view.View.INVISIBLE
+        views.setViewVisibility(CODE_IDS[i], visible)
+        views.setViewVisibility(RATE_IDS[i], visible)
+        views.setViewVisibility(CHG_IDS[i], visible)
+    }
+    shown.forEachIndexed { i, currency ->
         val unit = currency.quoteUnit
         views.setTextViewText(
             CODE_IDS[i],
@@ -102,7 +109,7 @@ fun renderQuickWidget(context: Context): RemoteViews {
         WidgetHub.broadcast(context, provider, WidgetHub.ACTION_AMOUNT, ""),
     )
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WidgetYou.enabled(context)) {
-        WidgetYou.header(views, CURRENCY_IDS, state.currency)
+        WidgetYou.header(views, currencyIds(context), state.currency)
         WidgetYou.hero(views, stale = isStale(state.snapshot))
         WidgetYou.quick(views, CHIP_IDS)
     }
@@ -151,7 +158,8 @@ private fun buildKeypad(context: Context, layout: Int, compact: Boolean): Remote
     bindHero(context, views, state)
     if (compact) {
         // 작은 위젯은 통화 칩 줄이 없다. 표시 줄 왼쪽에 지금 통화를 두고, "통화" 키는 다음 통화로 넘긴다.
-        val next = Currency.entries[(state.currency.ordinal + 1) % Currency.entries.size]
+        val favorites = SettingsStore(context).favorites()
+        val next = favorites[(favorites.indexOf(state.currency) + 1).mod(favorites.size)]
         views.setTextViewText(R.id.w_cur_label, state.currency.code)
         views.setTextViewText(R.id.w_amount, amountText(state))
         views.setOnClickPendingIntent(
@@ -172,7 +180,7 @@ private fun buildKeypad(context: Context, layout: Int, compact: Boolean): Remote
     // 입력하던 식과 통화를 그대로 들고 간다.
     views.setOnClickPendingIntent(R.id.w_display, WidgetHub.openAppWith(context, state.currency, state.input))
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WidgetYou.enabled(context)) {
-        if (!compact) WidgetYou.header(views, CURRENCY_IDS, state.currency)
+        if (!compact) WidgetYou.header(views, currencyIds(context), state.currency)
         WidgetYou.hero(views, stale = isStale(state.snapshot))
         WidgetYou.keypad(views, compact)
     }
@@ -219,7 +227,11 @@ private class WidgetSnapshot(
 
 private fun readState(context: Context) = WidgetSnapshot(
     snapshot = RateRepository(context).lastKnown(),
-    currency = WidgetPrefs.currency(context),
+    // 위젯 통화가 통화 칸에서 빠졌으면 첫 번째 통화로 그린다.
+    currency = WidgetPrefs.currency(context).let { c ->
+        val favorites = SettingsStore(context).favorites()
+        if (c in favorites) c else favorites.first()
+    },
     input = WidgetPrefs.input(context),
     mode = SettingsStore(context).priceMode(),
 )
@@ -230,7 +242,11 @@ private fun bindHeader(
     provider: Class<out AppWidgetProvider>,
     state: WidgetSnapshot,
 ) {
-    CURRENCY_IDS.forEach { (currency, id) ->
+    val ids = currencyIds(context)
+    CHIP_SLOT_IDS.forEach { id ->
+        views.setViewVisibility(id, if (id in ids.values) android.view.View.VISIBLE else android.view.View.GONE)
+    }
+    ids.forEach { (currency, id) ->
         val on = currency == state.currency
         // v2.7: 앱 통화 탭과 같이 코드만. 고른 칩은 진한 알약이라 국기 없이도 한눈에 갈린다.
         views.setTextViewText(id, currency.code)

@@ -54,7 +54,9 @@ class LocalCurrencyTest {
         assertEquals(Currency.CZK, LocalCurrency.forCountry("cz"))
         assertEquals(Currency.USD, LocalCurrency.forCountry("us"))
         assertNull(LocalCurrency.forCountry("kr"))
-        assertNull(LocalCurrency.forCountry("gb"))
+        // v2.13에 GBP를 지원 통화에 넣었다. 지원하지 않는 나라 예시는 브라질.
+        assertEquals(Currency.GBP, LocalCurrency.forCountry("gb"))
+        assertNull(LocalCurrency.forCountry("br"))
     }
 
     @Test fun 처음_도착하면_바꾼다() = assertEquals(Currency.JPY, LocalCurrency.decide("jp", "kr", Currency.USD))

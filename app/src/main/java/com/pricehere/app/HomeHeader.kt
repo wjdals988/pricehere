@@ -215,21 +215,35 @@ internal fun GlassIconButton(
 // ---------------------------------------------------------------- 통화 선택
 
 @Composable
-internal fun CurrencySegments(selected: Currency, onSelect: (Currency) -> Unit) {
+internal fun CurrencySegments(
+    favorites: List<Currency>,
+    selected: Currency,
+    onSelect: (Currency) -> Unit,
+    onEdit: () -> Unit = {},
+) {
     val large = isLargeFont()
     val view = rememberView()
-    SlidingSegments(count = Currency.entries.size, selected = Currency.entries.indexOf(selected)) {
-        Currency.entries.forEach { currency ->
+    // 통화 칸을 길게 누르면 자주 쓰는 통화 고르기(지름길). 기본 진입은 정보 탭.
+    SlidingSegments(count = favorites.size, selected = favorites.indexOf(selected)) {
+        favorites.forEach { currency ->
             val on = currency == selected
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        if (!on) Haptic.segment(view)
-                        onSelect(currency)
-                    }
+                    .combinedClickable(
+                        onClickLabel = "${currency.koreanName} 고르기",
+                        onLongClickLabel = "자주 쓰는 통화 바꾸기",
+                        onLongClick = {
+                            Haptic.confirm(view)
+                            onEdit()
+                        },
+                        onClick = {
+                            if (!on) Haptic.segment(view)
+                            onSelect(currency)
+                        },
+                    )
                     .semantics { contentDescription = currency.koreanName },
                 contentAlignment = Alignment.Center,
             ) {
